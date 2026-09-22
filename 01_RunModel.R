@@ -20,7 +20,7 @@ years = seq(first_year,terminal_year,1)
 # read in data
 catch.data <- as.matrix(read.csv("BC_catch_2seas.csv"))
 survey.data <- as.matrix(read.csv("BC_survey_2seas.csv"))
-env.data <- as.matrix(read.csv("NAO index annual_1982_2024_1yrlag.csv")) # loaded but only for plotting if function not used
+# env.data <- as.matrix(read.csv("NAO index annual_1982_2024_1yrlag.csv")) # loaded but only for plotting if function not used
 
 # Some settings
 
