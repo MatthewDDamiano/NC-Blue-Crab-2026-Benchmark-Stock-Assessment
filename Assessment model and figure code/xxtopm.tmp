@@ -1,0 +1,15 @@
+  long int arrmblsize=0;
+
+int main(int argc,char * argv[])
+{
+    ad_set_new_handler();
+  ad_exit=&ad_boundf;
+  arrmblsize=20000000;      //5,000,000 bytes of memory for variable objects.
+  gradient_structure::set_GRADSTACK_BUFFER_SIZE(10000000);  
+  gradient_structure::set_MAX_NVAR_OFFSET(50000);  
+  gradient_structure::set_NUM_DEPENDENT_VARIABLES(10000);
+  time(&tBeginTime); //    Get Beginning Time
+  //Record the beginning time 
+  ofRuntimelog<< endl << "Beginning time : " << ctime(&tBeginTime) << endl;
+  //print on screen
+  cout<<endl<<" NSLSAP Beginning Run:  "<< ctime(&tBeginTime) << endl;

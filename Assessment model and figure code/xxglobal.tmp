@@ -1,0 +1,371 @@
+#ifdef DEBUG
+  #ifndef __SUNPRO_C
+    #include <cfenv>
+    #include <cstdlib>
+  #endif
+#endif
+  #include <admodel.h>
+  #include <time.h>
+  ofstream  ofParametersMCMC("./CheckInput/NSParasMCMC.dat");
+  ofstream  ofInputData("./CheckInput/Global.dat");             //check control file input
+  ofstream  ofBiologyData("./CheckInput/Biology_Data.dat");     //check biology data input
+  ofstream  ofCAAData("./CheckInput/Catch_Data.dat");           //check catch data input
+  ofstream  ofIAAData("./CheckInput/Index_Data.dat");           //check survey data input
+  ofstream  ofGMData("./CheckInput/Growth_Matrix.dat");         //check growth matrix
+  ofstream  ofOGDData("./CheckInput/BRP.dat");                  //check biological reference point data
+  ofstream  ofPIRData("./CheckInput/Prior.dat");                //check prior input
+  ofstream  ofPJData("./CheckInput/Projection.dat");            //check projection setting
+  ofstream  ofINIData("./CheckInput/Initials.dat");             //check parameter initials input
+  ofstream  ofRuntimelog("./CheckInput/Runtime.log",ios::app);  //runtime log
+  ofstream  WARNING("./CheckInput/warning.log");                //warning log
+  // Record the Beginning and Ending time for Program! Inherit From ASAP2 Code (NOAA TOOL BOX 2011) 
+  time_t    tBeginTime;
+  time_t    tEndTime;
+  long      lHour;
+  long      lMinute;
+  long      lSecond;
+  double    dElapsed_time;
+  int       iBeginYear;
+  int       iEndYear;
+  int       itimestep;
+  /////////////////////////////////////////////////////////////
+  streampos tmpPirror;
+  streampos tmpCurrent;
+  ////define///////////////////////////////////////////////////////////
+  #define   Debug_Status              1
+  //#define   PI                        3.141592653897323846
+  #define   PI2                       6.283185307794647692
+  #define   MINPOSITIVE               0.00000000001
+  #define   SIGMA2FILL                9.21044   //log(100*100 +1)
+  #define   DIGITALPREC               0.000001
+  // 
+  #define   ICHECK(object)    ofInputData << "#" #object "\n " << object << endl;
+  #define   ICHECKGD(object)  ofBiologyData << "#" #object "\n " << object << endl;
+  #define   ICHECKCAA(object) ofCAAData << "#" #object "\n " << object << endl;
+  #define   ICHECKIAA(object) ofIAAData << "#" #object "\n " << object << endl;
+  #define   ICHECKGM(object)  ofGMData << "#" #object "\n " << object << endl;
+  #define   ICHECKOGD(object) ofOGDData << "#" #object "\n " << object << endl;
+  #define   ICHECKPIR(object) ofPIRData << "#" #object "\n " << object << endl;
+  #define   ICHECKPJD(object) ofPJData << "#" #object "\n " << object << endl;
+  #define   ICHECKINI(object) ofINIData << "#" #object "\n " << object << endl;
+  //
+  #define   RECORD(object)    ofRuntimelog <<  object << endl;
+  //
+  #define   CloseRecord()     ofRuntimelog.close(); 
+  #define   CloseGM()         ofGMData.close();
+  #define   CloseIAA()        ofIAAData.close();
+  #define   CloseCAA()        ofCAAData.close();
+  #define   CloseGD()         ofBiologyData.close();
+  #define   CloseOGD()        ofOGDData.close();
+  #define   ClosePIR()        ofPIRData.close();
+  #define   CloseGBD()        ofInputData.close();
+  #define   ClosePJD()        ofPJData.close();
+  #define   CloseINI()        ofINIData.close();
+  //
+  #if  Debug_Status 
+     ofstream  ofDebug("./CheckInput/Debug.log");  
+     #define   ICHECKDEB(object) ofDebug << "#" #object "\n " << object << endl;
+  #endif
+  double CalLogFactorial(int iFactor)
+   {
+      int    i;
+      double dR;
+      dR=0.0;
+      if(iFactor>=2)
+      {
+        for(i=2;i<=iFactor;i++)
+          dR+=log(double(i));
+      }
+      return dR;
+   }
+   //-Ln(L)
+  double CalLikelihoodConst(double dObs,int iModel)
+  {
+      double dR;
+      //double dAdd=MINPOSITIVE;
+      dR=0.0;
+      switch(iModel)
+      {   
+        case 1://robust from lobster
+           dR=0.5*log(PI2);              //log(sqrt(PI2)*dSigma);
+           break;
+        case 2://t-dis from lobster
+           dR=-log(1.32934/sqrt(4.0*PI));
+           break;
+        case 3://for deviation parameters e.g. F; R; q.
+           dR=0.5*log(PI2);             
+           break; 
+        case 4://log-normal
+           if(dObs>0.0)
+                dR=0.5*log(PI2)+log(dObs);
+           else
+                dR=0.0;
+           break;
+        case 5://log- normal without obs
+           dR=0.5*log(PI2);
+           break;
+        case 6://normal 
+           dR=0.5*log(PI2);
+           break;
+        case 7:
+           dR=log(PI);
+           break;
+        default:
+           dR=0.0;
+           break;
+      }
+      return dR;
+   }
+    //-Ln(L)  
+   dvariable CalLikelihoodVar(double obs,double dSigma2, const prevariable & pred, const int &iModel)
+   {//   dvariable pred
+       dvariable dvarR;
+       dvariable  dvarTemp;
+       //double dAdd=MINPOSITIVE;
+       dvarR=0.0;
+       switch(iModel)
+       { 
+          case 1:
+             if(obs>0.0 && pred>0.0)
+                  dvarR=-log(mfexp(-square(log(obs)-log(pred))/(2*dSigma2))+0.01)+log(dSigma2)*0.5;
+             else
+                  dvarR=0.0;
+             break;
+          case 2:
+              // fattail likelihood
+              if(obs>0.0 && pred>0.0)
+                     dvarR= 2.5*log(1.0+square(log(obs)-log(pred))/(4.0*dSigma2));
+              else
+                     dvarR=0.0;
+              break;
+          case 3://normal //Deviation 
+              dvarR= 0.5*square(pred)/dSigma2+log(dSigma2)*0.5;
+              break;
+          case 4://log-normal 
+              if(obs>0.0 && pred>0.0)
+                   dvarR=0.5*square(log(obs)-log(pred))/dSigma2+log(dSigma2)*0.5;
+              else
+                   dvarR=0.0;
+              break;
+          case 5://log-normal without obs 
+              if(obs>0.0 && pred>0.0)
+                    dvarR=0.5*square(log(obs)-log(pred))/dSigma2;
+              else
+                    dvarR=0.0;
+              break;
+          case 6://normal  
+                    dvarR=0.5*square(obs-pred)/dSigma2+log(dSigma2)*0.5;
+              break;
+          case 7:
+                dvarTemp=0.675*sqrt(dSigma2);
+                dvarR=log(dvarTemp*(1.0+square((obs-pred)/dvarTemp)));  
+                break;
+          default:
+              dvarR=0.0;
+              break;
+       }
+      return dvarR;
+   }
+    //-Ln(L)  
+   dvariable CalLikelihoodVar(double obs, const prevariable  &dSigma2, const prevariable & pred, const int &iModel)
+   {//   dvariable pred
+       dvariable dvarR;
+       dvariable  dvarTemp;
+       //double dAdd=MINPOSITIVE;
+       dvarR=0.0;
+       switch(iModel)
+       { 
+          case 1:
+             if(obs>0.0 && pred>0.0)
+                  dvarR=-log(mfexp(-square(log(obs)-log(pred))/(2*dSigma2))+0.01)+log(dSigma2)*0.5;
+             else
+                  dvarR=0.0;
+             break;
+          case 2:
+              // fattail likelihood
+              if(obs>0.0 && pred>0.0)
+                     dvarR= 2.5*log(1.0+square(log(obs)-log(pred))/(4.0*dSigma2));
+              else
+                     dvarR=0.0;
+              break;
+          case 3://normal //Deviation 
+              dvarR= 0.5*square(pred)/dSigma2+log(dSigma2)*0.5;
+              break;
+          case 4://log-normal 
+              if(obs>0.0 && pred>0.0)
+                   dvarR=0.5*square(log(obs)-log(pred))/dSigma2+log(dSigma2)*0.5;
+              else
+                   dvarR=0.0;
+              break;
+          case 5://log-normal without obs 
+              if(obs>0.0 && pred>0.0)
+                    dvarR=0.5*square(log(obs)-log(pred))/dSigma2+log(dSigma2)*0.5;
+              else
+                    dvarR=0.0;
+              break;
+          case 6://normal  
+                    dvarR=0.5*square(obs-pred)/dSigma2+log(dSigma2)*0.5;
+              break;
+          case 7:
+                dvarTemp=0.675*sqrt(dSigma2);
+                dvarR=log(dvarTemp*(1.0+square((obs-pred)/dvarTemp)));  
+                break;
+          default:
+              dvarR=0.0;
+              break;
+       }
+      return dvarR;
+   }
+    dvariable CalStockRecruitment( const prevariable &dvSSB,  const prevariable &dvAlpha, const prevariable &dvBelta,const int &iModel)
+    {
+                 dvariable dvR;
+                 dvR=0.0;
+                 switch(iModel)
+                 {
+                     case 1:
+                          dvR=dvAlpha;
+                          break;
+                     case 2:
+                          dvR=dvAlpha*dvSSB/(dvBelta+dvSSB);
+                          break;
+                    case 3:
+                          dvR=dvAlpha*dvSSB*mfexp(-dvBelta*dvSSB);
+                          break;
+                    default:
+                         break;
+                }
+                return dvR;  
+    }
+     dvariable CalStockRecruitmentF( double vEnri1,double vEnri2,double vEnri3,const prevariable &dvSSB,const prevariable &dvAlpha,const prevariable &dvBelta,const dvar_vector &dvEnri,const int &iModel)
+     {
+                 dvariable dvR;
+                 dvariable dvSum;
+                 int i;
+                 //int imax,imin;
+                 dvSum=0.0;
+                 dvSum +=dvEnri(1)*vEnri1+dvEnri(2)*vEnri2+dvEnri(3)*vEnri3;
+                  switch(iModel)
+                 {
+                     case 1:
+                          dvR=dvAlpha;
+                          break;
+                     case 2:
+                          dvR=dvAlpha*dvSSB/(dvBelta+dvSSB);
+                          break;
+                     case 3:
+                          dvR=dvAlpha*dvSSB*mfexp(-dvBelta*dvSSB);
+                          break;
+                     case 4:
+                          dvR=mfexp(log(dvAlpha)+dvBelta*log(dvSSB)+dvSum);//Cushing E
+                          break;
+                     case 5:
+                          dvR=mfexp(log(dvAlpha)+log(dvSSB)-log(dvBelta+dvSSB)+dvSum);//BH E
+                          break;
+                     case 6:
+                          dvR=dvAlpha*dvSSB*mfexp(-dvBelta*dvSSB+dvSum);//Ricker E
+                          break;
+                     default:
+                         break;
+                 }
+                 return dvR;  
+     }
+  //////////////////////////////////////////////////////////////////////////////////
+  dvariable GrowthVariance(const prevariable &dvDeltaL,const prevariable &dvDeltaLVar, const double& dL)   
+  {
+      dvariable dvTemp;
+      dvTemp=1.0/sqrt(PI2*dvDeltaLVar)*mfexp(-(dL-dvDeltaL)*(dL- dvDeltaL)*0.5/dvDeltaLVar);
+      return dvTemp;
+  }
+  ///////////////////////////////////////////////////////////////////////////////////
+  dvariable Integrate(const prevariable &dvDeltaL,const prevariable &dvDeltaLVar,double xMin,double xMax,int Panels,int type)
+  {
+    dvariable result = 0.0;
+    int i;
+    double interval = (xMax-xMin)/Panels;
+    if(type == 0)
+    {
+        double xIterator = xMin+interval/2;
+        for(int i=0;i<Panels;i++)
+        {
+            result += GrowthVariance(dvDeltaL,dvDeltaLVar,xIterator);
+            xIterator += interval;
+        }
+        result*=interval;
+        return result;
+    }
+    else if(type == 1)
+    {
+        double xIterator = xMin;
+        for(int i=0;i<=Panels;i++)
+        {
+            result += GrowthVariance(dvDeltaL,dvDeltaLVar,xIterator);
+            xIterator += interval;
+        }
+        result -=(GrowthVariance(dvDeltaL,dvDeltaLVar,xMin)+GrowthVariance(dvDeltaL,dvDeltaLVar,xMax))*0.5;//(0.5*(func(xMin)+func(xMax)));
+        result *= interval;
+        return result;
+    }
+    else if(type == 2)
+    {
+        if(Panels%2!=0)
+        {
+            cerr<<"Integer type Panels must be even to use Simpson's rule."<<endl;
+            abort();
+        }
+        else
+        {
+            double xIterator = xMin;
+            double xIt2;
+            for( i=0;i<=Panels;i++)
+            {
+                if(i%2 == 0)
+                {
+                    result += 2*GrowthVariance(dvDeltaL,dvDeltaLVar,xIterator);
+                }
+                else
+                {
+                    result += 4*GrowthVariance(dvDeltaL,dvDeltaLVar,xIterator);
+                }
+                xIterator += interval;
+                if(dvDeltaLVar<0.001)
+                {
+                    xIt2=xIterator+interval;
+                    if(xIterator<dvDeltaL && xIt2>dvDeltaL)
+                            xIterator=value(dvDeltaL);
+                }
+            }
+            result -= (GrowthVariance(dvDeltaL,dvDeltaLVar,xMin)+GrowthVariance(dvDeltaL,dvDeltaLVar,xMax));//(func(xMin)+func(xMax));
+            result *= interval/3;
+        }
+        return result;
+    }
+    return -1.0;
+  }
+  //////////////////////////////////////////////////////////////////
+   dvariable Integrate(const prevariable &dvDeltaL,const prevariable &dvDeltaLVar,double a,double b)
+  {
+        dvariable T2n,I2n,Tn,In;
+        dvariable sigma;
+	double h;
+	int n=1;
+	const double eps=1e-6;
+	h=b-a;
+	T2n=I2n=(GrowthVariance(dvDeltaL,dvDeltaLVar,a)+GrowthVariance(dvDeltaL,dvDeltaLVar,b))*0.5*h;//h*(f(a)+f(b))/2;
+	In=0;
+	while(fabs(I2n-In)>=eps)
+	{
+		Tn=T2n;
+		In=I2n;
+		sigma=0.0;
+		for(int k=0;k<n;k++)
+		{
+			double x=a+(k+0.5)*h;
+			sigma+=GrowthVariance(dvDeltaL,dvDeltaLVar,x);//f(x);
+		}
+		T2n=(Tn+h*sigma)/2.0;
+		I2n=(4*T2n-Tn)/3.0;
+		n*=2;
+		h/=2;
+	}
+	return I2n;
+    }

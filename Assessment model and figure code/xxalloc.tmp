@@ -1,0 +1,2132 @@
+#include <NSLSAP01.htp>
+
+model_data::model_data(int argc,char * argv[]) : ad_comm(argc,argv)
+{
+  adstring tmpstring;
+  tmpstring=adprogram_name + adstring(".dat");
+  if (argc > 1)
+  {
+    int on=0;
+    if ( (on=option_match(argc,argv,"-ind"))>-1)
+    {
+      if (on>argc-2 || argv[on+1][0] == '-')
+      {
+        cerr << "Invalid input data command line option"
+                " -- ignored" << endl;
+      }
+      else
+      {
+        tmpstring = adstring(argv[on+1]);
+      }
+    }
+  }
+  global_datafile = new cifstream(tmpstring);
+  if (!global_datafile)
+  {
+    cerr << "Error: Unable to allocate global_datafile in model_data constructor.";
+    ad_exit(1);
+  }
+  if (!(*global_datafile))
+  {
+    delete global_datafile;
+    global_datafile=NULL;
+  }
+ No_Report=0;
+ Ncycle=3;
+ad_comm::change_datafile_name("./InputFiles/Control.DAT");                   //read control data from file named GLOBAL.DAT
+  Flagtimestep.allocate("Flagtimestep");
+ICHECK(Flagtimestep);
+  DiYearNum.allocate("DiYearNum");
+ICHECK(DiYearNum);
+  DiSeasonNum.allocate("DiSeasonNum");
+ICHECK(DiSeasonNum);
+  DvMonthInSeason.allocate(1,DiSeasonNum,"DvMonthInSeason");
+ICHECK(DvMonthInSeason);
+  DiBeginYear.allocate("DiBeginYear");
+ICHECK(DiBeginYear); 
+  DiCalBeginYear_Ini.allocate("DiCalBeginYear_Ini");
+ICHECK(DiCalBeginYear_Ini)
+  DiCalEndYear_Ini.allocate("DiCalEndYear_Ini");
+ICHECK(DiCalEndYear_Ini)
+  DiLikelyConstFlag.allocate("DiLikelyConstFlag");
+ICHECK(DiLikelyConstFlag);
+  DiCohortTrackingBeginYear.allocate("DiCohortTrackingBeginYear");
+ ICHECKOGD(DiCohortTrackingBeginYear)
+  DiTestValue.allocate("DiTestValue");
+ICHECK(DiTestValue);
+    if( DiTestValue !=999)
+    {
+        cout<< "Input Error in Control Data"<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal 999");
+        CloseRecord();
+        exit(-1);                                          // echo %errorlevel%  or BOOL GetExitCodeProcess(HANDLE hProcess,LPDWORD lpExitCode)
+    }
+    DiCalBeginYear= DiCalBeginYear_Ini- DiBeginYear+1;
+    if(DiCalBeginYear<1)
+    {
+         WARNING<<"Error:  first year for assessment"<<endl;
+         DiCalBeginYear=1;
+    }
+    DiCalEndYear=DiCalEndYear_Ini- DiBeginYear+1;
+    if(DiCalEndYear>DiYearNum)
+    {
+       WARNING<<"Error: last year for assessment"<<endl;
+       DiCalEndYear=DiYearNum;
+    }
+    if( DiCalEndYear<= DiCalBeginYear)
+    {
+        RECORD("Error  DiCalEndYear LESS Than  DiCalBeginYear");
+        CloseRecord();
+        exit(-12);
+    }
+   iBeginYear=DiCalBeginYear_Ini;
+   iEndYear=DiCalEndYear_Ini;
+   itimestep=Flagtimestep;
+   #if Debug_Status
+       ICHECK(DiCalBeginYear);
+       ICHECK(DiCalEndYear);
+   #endif
+   RECORD("Control Data End ");
+   #if Debug_Status
+    if (Flagtimestep==1){cout<<"Time step: year"<<endl;}
+    if (Flagtimestep==4){cout<<"Time step: season"<<endl;}
+      cout<<"Data Begin Year:"<<DiBeginYear<<endl;
+      cout<<"Caculation Begin Year:"<<DiCalBeginYear_Ini<<endl;
+      cout<<"Caculation End Year:"<<DiCalEndYear_Ini<<endl;
+      cout<<""<<endl;
+   #endif
+   CloseGBD(); 
+cout<<"Control Data Input Completed"<<endl;
+ad_comm::change_datafile_name("./InputFiles/Biology_Data.DAT");
+  DiSizeBinNum.allocate("DiSizeBinNum");
+ICHECKGD(DiSizeBinNum);
+  DvSizeBinData.allocate(0,DiSizeBinNum,"DvSizeBinData");
+ICHECKGD(DvSizeBinData);
+ DiWeightAtSizeDataFlag=0;
+   if(DiWeightAtSizeDataFlag)
+   {
+     y=DiYearNum;
+     z=DiSizeBinNum+1;
+   }
+   else
+   {
+     y=0;
+     z=0;
+   }
+  #if Debug_Status
+     ICHECKGD(DiWeightAtSizeDataFlag);
+  #endif
+  DmWeightAtSize_Ini.allocate(1,y,1,z,"DmWeightAtSize_Ini");
+ if(DiWeightAtSizeDataFlag)    ICHECKGD(DmWeightAtSize_Ini); 
+   if(DiWeightAtSizeDataFlag)
+   {
+     y=0;
+     NP=0;
+   }
+   else
+   {
+     y=DiYearNum;
+     NP=2+1;
+   }
+  DmWeightAB.allocate(1,y,1,NP,"DmWeightAB");
+if(!DiWeightAtSizeDataFlag)    ICHECKGD( DmWeightAB);          
+ DiMaturityAtSizeDataFlag=1;
+   if(DiMaturityAtSizeDataFlag)
+   {
+     y=DiYearNum;
+     z=DiSizeBinNum+1;
+   }
+   else
+   {
+     y=0;
+     z=0;
+   }
+  #if Debug_Status
+     ICHECKGD(DiMaturityAtSizeDataFlag);
+  #endif
+  DmMaturityAtSize_Ini.allocate(1,y,1,z,"DmMaturityAtSize_Ini");
+ if(DiMaturityAtSizeDataFlag)   ICHECKGD(DmMaturityAtSize_Ini);
+   if(!DiMaturityAtSizeDataFlag)
+   {
+     y=DiYearNum;
+     NP=4;
+   }
+   else
+   {
+     y=0;
+     NP=0;
+   }
+  DmMaturityFuncPara.allocate(1,y,1,NP,"DmMaturityFuncPara");
+if(!DiMaturityAtSizeDataFlag)   ICHECKGD(DmMaturityFuncPara);                                                                     
+ DiNaturalMortalityFlag =0;                                      // 1:estimated M
+   if(DiNaturalMortalityFlag)     
+   {
+        s= DiYearNum  * DiSeasonNum;   
+        z= DiSizeBinNum+2; // Year Season Bin1 Bin2 Bin3 ...  
+   }
+   else
+   {
+        s=0;
+        z=0;
+   }
+  #if Debug_Status
+     ICHECKGD(DiNaturalMortalityFlag);
+  #endif
+  DmNaturalMAtSize_Ini.allocate(1,s,1,z,"DmNaturalMAtSize_Ini");
+if( DiNaturalMortalityFlag ) ICHECKGD(DmNaturalMAtSize_Ini);
+   if(!DiNaturalMortalityFlag)     
+   {
+       // lL1= DiSeasonNum;   
+        z= DiSizeBinNum; // Year Season Bin1 Bin2 Bin3 ...  
+   }
+   else
+   {
+       //lL1=0;
+       z=0;
+   }
+  DvNaturalMSizeWeight.allocate(1,z,"DvNaturalMSizeWeight");
+ if(!DiNaturalMortalityFlag)  ICHECKGD(DvNaturalMSizeWeight);
+   if(!DiNaturalMortalityFlag)     
+   {
+       // lL1= DiSeasonNum;   
+        y= DiYearNum; // Year Season Bin1 Bin2 Bin3 ...  
+   }
+   else
+   {
+       //lL1=0;
+       y=0;
+   }
+  DvNaturalMYearWeight.allocate(1,y,"DvNaturalMYearWeight");
+ if(!DiNaturalMortalityFlag)  ICHECKGD( DvNaturalMYearWeight);
+  DiRecruitPrjVectNP.allocate("DiRecruitPrjVectNP");
+ICHECKGD(DiRecruitPrjVectNP);                           //  how many parameters(DiRecruitPrjVectNP) was estimated
+  DvRecruitmentSeaRate.allocate(1,DiSeasonNum,"DvRecruitmentSeaRate");
+ICHECKGD(DvRecruitmentSeaRate)                     //     R(s)=R*rate(s)
+  DnSSBmonth.allocate("DnSSBmonth");
+ICHECKGD(DnSSBmonth);
+    if (Flagtimestep==1)
+        DvRecruitmentSeaRate(1)=1;
+    DnFracYearSSB=(DnSSBmonth-1)/12;
+  
+    temp=sum(DvRecruitmentSeaRate);
+    if(temp>0)
+       DvRecruitmentSeaRate/=temp;
+    else
+    {
+        RECORD("Error: DvRecruitmentSeaRate less Than  0");
+        CloseRecord();
+        exit(-21);   
+    }
+    temp1=0.0;
+    temp=DnFracYearSSB *sum(DvMonthInSeason);
+    for(i=1;i<=DiSeasonNum;i++)
+    { 
+       temp1=temp1+DvMonthInSeason(i);
+       if(temp<=temp1)
+       {
+           DiSBBSeason=i;
+           DnFracSeasonSSB=(temp-(temp1-DvMonthInSeason(i)))/DvMonthInSeason(i);
+           break;
+       }
+    }
+   #if Debug_Status
+      ICHECKGD(DnFracYearSSB);
+      ICHECKGD(DiSBBSeason);
+      ICHECKGD(DnFracSeasonSSB);
+      ICHECKGD(temp);
+      ICHECKGD(temp1);
+   #endif
+  DiRSFlag.allocate("DiRSFlag");
+ICHECKGD(DiRSFlag);  
+  DiFlagEvntoRdevs.allocate("DiFlagEvntoRdevs");
+  DiEnvNum.allocate("DiEnvNum");
+  DmEnv.allocate(1,DiYearNum,1,DiEnvNum,"DmEnv");
+ DiFecundityFlag=1;                                        // ??????????? egg  
+DiYearBeforeEndForRDev=0;
+ DiRecruitLogDevsSDEstFlag =1;
+  DiNYear1ChoiceFlag.allocate("DiNYear1ChoiceFlag");
+ICHECKGD(DiNYear1ChoiceFlag);       //   0: estimate the abundance of each size bin
+lL1=DiSizeBinNum;
+  DvNYear1Pia.allocate(1,lL1,"DvNYear1Pia");
+  DiTestValueGD.allocate("DiTestValueGD");
+ICHECKGD(DiTestValueGD);
+    if( DiTestValueGD!=999)
+    {
+        cout<< "Input Error in Biology Data Part"<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal 999");
+        CloseRecord();
+        exit(-22);
+    }
+    #if Debug_Status
+        ICHECKGD(DiFecundityFlag);
+        ICHECKGD(DiRecruitLogDevsSDEstFlag);
+    #endif
+  DmWeightAtSize.allocate(1,DiYearNum,1,DiSizeBinNum);
+  DmMaturityAtSize.allocate(1,DiYearNum,1,DiSizeBinNum);
+  DmFecundity.allocate(1,DiYearNum,1,DiSizeBinNum);
+     
+     for(i=1;i<=DiYearNum;i++)
+     {
+        if(!DiMaturityAtSizeDataFlag)
+        {
+           for(j=1;j<=DiSizeBinNum;j++)
+           {
+              temp= DmMaturityFuncPara(i,2)/(1.0+mfexp(- DmMaturityFuncPara(i,3)*( 0.5*(DvSizeBinData(j-1)+ DvSizeBinData(j))- DmMaturityFuncPara(i,4))));
+              DmMaturityAtSize(i,j)=temp;  
+           }
+        }
+        else
+        {
+           for(j=1;j<=DiSizeBinNum;j++)
+              DmMaturityAtSize(i,j)=DmMaturityAtSize_Ini(i,j+1);
+        }
+     }
+    
+     ///////////////////////////////////////////
+    
+     for(i=1;i<=DiYearNum;i++)
+     {
+        if(!DiWeightAtSizeDataFlag)
+        {
+           for(j=1;j<=DiSizeBinNum;j++)
+           {//sgwj debug
+               // DmWeightAtSize(i,j)=0.5*pow(DvSizeBinData(j-1),DmWeightAB(j,3))*DmWeightAB(i,2);
+                //DmWeightAtSize(i,j)+=0.5*pow(DvSizeBinData(j),DmWeightAB(j,3))*DmWeightAB(i,2);
+                DmWeightAtSize(i,j)=pow((DvSizeBinData(j-1)+DvSizeBinData(j))*0.5,DmWeightAB(i,3))*exp(DmWeightAB(i,2));
+                DmFecundity(i,j)=DmMaturityAtSize(i,j)*DmWeightAtSize(i,j)*0.5;
+           } 
+        }
+        
+     }
+     
+  //!!if(DiNYear1ChoiceFlag==1||DiNYear1ChoiceFlag==2) ICHECKOGD(DvNYear1Pia);
+  
+     #if Debug_Status  
+          ICHECKGD(DmFecundity);
+          ICHECKGD(DmMaturityAtSize);
+          ICHECKGD(DmWeightAtSize);
+          cout<<"Biology Data Input Completed"<<endl;
+     #endif
+     CloseGD();
+    if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/CatchDataYear.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/CatchDataSeason.DAT");}
+  DiFleetNum.allocate("DiFleetNum");
+ICHECKCAA(DiFleetNum);
+  DimCatchBiomassFlag.allocate(1,DiFleetNum,1,Flagtimestep,"DimCatchBiomassFlag");
+ICHECKCAA(DimCatchBiomassFlag);
+  DimCSelStartSizeBin.allocate(1,DiFleetNum,1,Flagtimestep,"DimCSelStartSizeBin");
+ICHECKCAA(DimCSelStartSizeBin);
+  DimCSelEndSizeBin.allocate(1,DiFleetNum,1,Flagtimestep,"DimCSelEndSizeBin");
+ICHECKCAA(DimCSelEndSizeBin);
+  DimCatchCompLikelihoodFlag.allocate(1,DiFleetNum,1,Flagtimestep,"DimCatchCompLikelihoodFlag");
+ICHECKCAA(DimCatchCompLikelihoodFlag);
+  DimCatchTotalLikelihoodFlag.allocate(1,DiFleetNum,1,Flagtimestep,"DimCatchTotalLikelihoodFlag");
+ICHECKCAA(DimCatchTotalLikelihoodFlag);
+  DimCPUELikelihoodFlag.allocate(1,DiFleetNum,1,Flagtimestep,"DimCPUELikelihoodFlag");
+ICHECKCAA(DimCPUELikelihoodFlag);
+  DmCatchCompLambda.allocate(1,DiFleetNum,1,Flagtimestep,"DmCatchCompLambda");
+ICHECKCAA(DmCatchCompLambda);
+  DmCatchTotalLambda.allocate(1,DiFleetNum,1,Flagtimestep,"DmCatchTotalLambda");
+ICHECKCAA(DmCatchTotalLambda);
+  DmCPUELambda.allocate(1,DiFleetNum,1,Flagtimestep,"DmCPUELambda");
+ICHECKCAA(DmCPUELambda);        
+  DiCAALength.allocate("DiCAALength");
+  DmCatchAtSize_Ini.allocate(1,DiCAALength,1,3+6+DiSizeBinNum,"DmCatchAtSize_Ini");
+ICHECKCAA(DmCatchAtSize_Ini);                                            //adapt to the input data format, it will be replaced by other variable/const in calculation           
+  Dd4CatchAtSizeO.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear,1,DiSizeBinNum);
+  Dd3CatchTotalO.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CPUEO.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CatchESSInput.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CatchTotalSigma.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CatchTotalSigma2.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CPUESigma.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd3CPUESigma2.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear);
+  Dd4CatchPropAtSizeO.allocate(1,DiFleetNum,1,Flagtimestep,DiCalBeginYear,DiCalEndYear,1,DiSizeBinNum);
+  DimFleetFirstYear.allocate(1,DiFleetNum,1,Flagtimestep);
+lL1=(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep;                          
+  DimFleetFZeroIndex.allocate(1,DiFleetNum,1,lL1);
+   // Format changed 
+   Dd4CatchAtSizeO.initialize();
+   Dd3CatchTotalO.initialize();
+   Dd3CPUEO.initialize();
+   Dd3CatchESSInput.initialize();
+   Dd3CatchTotalSigma.initialize();
+   Dd3CatchTotalSigma2.initialize();
+   Dd3CPUESigma.initialize();
+   Dd3CPUESigma2.initialize();
+   Dd4CatchPropAtSizeO.initialize();
+   DimFleetFirstYear.initialize();
+   //DivFleetFirstSeason.initialize();
+   DimFleetFZeroIndex.initialize();
+   for(i=1;i<=DiCAALength;i++)
+   {
+       kk=int( DmCatchAtSize_Ini(i,1)+0.01)-DiBeginYear+1; //year
+       if(kk<DiCalBeginYear || kk> DiCalEndYear )
+          continue;
+       ii= int( DmCatchAtSize_Ini(i,2)+0.01); //Season
+       jj= int(DmCatchAtSize_Ini(i,3)+0.01); //Fleet
+       if(ii<=0||jj<=0||ii>DiSeasonNum||jj>DiFleetNum)
+         continue;
+       for(j=1;j<=DiSizeBinNum;j++)
+       {
+           Dd4CatchAtSizeO(jj,ii,kk,j)= DmCatchAtSize_Ini(i,9+j);  
+       }
+       Dd3CatchESSInput(jj,ii,kk)=DmCatchAtSize_Ini(i,9);
+       //
+       Dd3CatchTotalO(jj,ii,kk)=DmCatchAtSize_Ini(i,4);
+      /////////////////////////////////////////////////////////////////
+       if(Dd3CatchTotalO(jj,ii,kk)> MINPOSITIVE)
+       {
+              DimFleetFZeroIndex(jj,(kk-DiCalBeginYear)*Flagtimestep+ii)=1;
+              if(DimFleetFirstYear(jj,ii)==0)
+              {
+                    DimFleetFirstYear(jj,ii)=kk;
+              }      
+       }
+      //////////////////////////////////////////////////////////////////////
+       if(DmCatchAtSize_Ini(i,5)>MINPOSITIVE)
+             Dd3CatchTotalSigma2(jj,ii,kk)=DmCatchAtSize_Ini(i,5)* DmCatchAtSize_Ini(i,5);//log(DmCatchAtSize_Ini(i,5)* DmCatchAtSize_Ini(i,5)+1.0);
+       else
+             Dd3CatchTotalSigma2(jj,ii,kk)=SIGMA2FILL;
+       Dd3CatchTotalSigma(jj,ii,kk)= sqrt(Dd3CatchTotalSigma2(jj,ii,kk));
+     
+       Dd3CPUEO(jj,ii,kk)=DmCatchAtSize_Ini(i,6);
+       //sgwj debug  How to deal with Flag   CPUE=Catch/Effort ? or Effort(Obs)-Effort(Pred)         
+       if(DmCatchAtSize_Ini(i,8)>MINPOSITIVE)
+             Dd3CPUESigma2(jj,ii,kk)=DmCatchAtSize_Ini(i,8)* DmCatchAtSize_Ini(i,8);//log(DmCatchAtSize_Ini(i,7)* DmCatchAtSize_Ini(i,7)+1.0);
+       else
+             Dd3CPUESigma2(jj,ii,kk)=SIGMA2FILL;
+       Dd3CPUESigma(jj,ii,kk)=sqrt(Dd3CPUESigma2(jj,ii,kk));
+   }
+   //compute the proportion of the catch at each selectivity size 
+   for(i=1;i<=DiFleetNum;i++)
+   {
+       for(ii=1;ii<=Flagtimestep;ii++)
+       {
+            for(j=DiCalBeginYear;j<=DiCalEndYear;j++)
+            {
+                nTemp=0.0;
+                if( Dd3CatchTotalO(i,ii,j)> MINPOSITIVE)
+                {
+                     for(k=DimCSelStartSizeBin(i,ii);k<=DimCSelEndSizeBin(i,ii);k++)
+                              nTemp+=Dd4CatchAtSizeO(i,ii,j,k);                     //sum(d3CatchAtSizeO(i,j,ivCSelStartSizeBin(i),ivCSelEndSizeBin(i)));
+                     if(nTemp> MINPOSITIVE)
+                         Dd4CatchPropAtSizeO(i,ii,j)(DimCSelStartSizeBin(i,ii),DimCSelEndSizeBin(i,ii))=Dd4CatchAtSizeO(i,ii,j)(DimCSelStartSizeBin(i,ii),DimCSelEndSizeBin(i,ii))/nTemp;
+                }
+            }
+       }
+   } 
+  
+   #if Debug_Status
+     ICHECKCAA(Dd4CatchAtSizeO);
+     ICHECKCAA(Dd4CatchPropAtSizeO);
+     ICHECKCAA(DimFleetFZeroIndex);
+     ICHECKCAA(Dd3CatchTotalO);
+     ICHECKCAA(Dd3CatchTotalSigma2);
+     ICHECKCAA(DimFleetFirstYear);
+     ICHECKCAA(Dd3CatchESSInput);
+     ICHECKCAA(Dd3CPUEO);
+     ICHECKCAA(Dd3CPUESigma2);
+    //cout<<"Catch Data Input Completed"<<endl;
+    // exit(-99);
+   #endif
+   RECORD("Catch Data Input Completed");
+  
+  DimAvailCPUEFlag.allocate(1,DiFleetNum,1,Flagtimestep,"DimAvailCPUEFlag");
+ICHECKCAA(DimAvailCPUEFlag);
+DiAvailCPUENum=sum(DimAvailCPUEFlag);
+  DivAvailCPUEIndexOld.allocate(1,DiAvailCPUENum);
+lL1=DiFleetNum*Flagtimestep;
+  DivOldIndexAvailCPUE.allocate(1,lL1);
+    if(DiAvailCPUENum>0)
+       DivAvailCPUEIndexOld.initialize();
+    DivOldIndexAvailCPUE.initialize();
+    i=0;
+    for(ii=1;ii<=DiFleetNum;ii++)
+    {
+        for(j=1;j<=Flagtimestep;j++)
+        {
+           if(DimAvailCPUEFlag(ii,j))
+           {
+                 i++;
+                 iL1=(ii-1)*Flagtimestep+j;
+                 DivAvailCPUEIndexOld(i)=iL1;
+                 DivOldIndexAvailCPUE(iL1)=i;
+           }
+       }
+    }
+   #if Debug_Status
+     ICHECKCAA(DiAvailCPUENum);
+     if(DiAvailCPUENum>0)
+         ICHECKCAA( DivAvailCPUEIndexOld);
+     ICHECKCAA(DivOldIndexAvailCPUE);
+   #endif
+  DiCPUEBlockNum.allocate("DiCPUEBlockNum");
+ICHECKCAA(DiCPUEBlockNum);                              //  e.g. season 1, fleet 1, q(1,1) was same from 1967--2009,so breakpoint is to break 1967--1985---2009
+  DivCPUEQChoiceFlag_Ini.allocate(1,DiCPUEBlockNum,"DivCPUEQChoiceFlag_Ini");
+ICHECKCAA(DivCPUEQChoiceFlag_Ini);
+    if(DiCPUEBlockNum>0)
+    {
+       iL1=Flagtimestep;
+       iL2=DiYearNum;
+       lL1=DiFleetNum+1;
+    }
+    else
+    {   //
+        iL1=-1;
+        iL2=-1;
+        lL1=-1; 
+       //iL1=DiSeasonNum;
+       //iL2=DiYearNum;
+       //lL1=DiFleetNum+1;
+    }
+  Dd3CPUEBlockFlag.allocate(1,iL1,1,iL2,1,lL1,"Dd3CPUEBlockFlag");
+ICHECKCAA(Dd3CPUEBlockFlag);
+  DivCPUEBlockAvailFlag.allocate(1,DiCPUEBlockNum);
+   if(DiCPUEBlockNum>0)
+      DivCPUEBlockAvailFlag=0;
+   // DiFleetSelAvailBlockNum=0;
+   for(i=1;i<=Flagtimestep;i++)
+   {
+        for(j=DiCalBeginYear;j<=DiCalEndYear;j++)
+        {
+            for(k=1;k<=DiFleetNum;k++)
+            {
+               if(Dd3CPUEO(k,i,j)>MINPOSITIVE && DimAvailCPUEFlag(k,i)==1)
+               {
+                    iL1=int(Dd3CPUEBlockFlag(i,j,k+1)+0.01);
+                    if(iL1<1||iL1>DiCPUEBlockNum)
+                            continue;
+                    if(DivCPUEBlockAvailFlag(iL1)==0)
+                           DivCPUEBlockAvailFlag(iL1)=1;
+               }
+            }
+        }
+   }
+ICHECKCAA(DivCPUEBlockAvailFlag);
+  DiFleetSelBlockNum.allocate("DiFleetSelBlockNum");
+ICHECKCAA(DiFleetSelBlockNum); 
+  DivFleetSelBlockFlag.allocate(1,DiFleetSelBlockNum,"DivFleetSelBlockFlag");
+ICHECKCAA(DivFleetSelBlockFlag);
+  DivFleetSelParaIndex_Ini.allocate(1,DiFleetSelBlockNum);
+     
+     DiFleetSelParaNumIni=0;
+     for(i=1;i<=DiFleetSelBlockNum;i++)
+     {
+            DivFleetSelParaIndex_Ini(i)=   DiFleetSelParaNumIni;
+            if(DivFleetSelBlockFlag(i)==1) DiFleetSelParaNumIni+=DiSizeBinNum;
+            if(DivFleetSelBlockFlag(i)==2) DiFleetSelParaNumIni+=2;
+            if(DivFleetSelBlockFlag(i)==3) DiFleetSelParaNumIni+=4;
+     }
+    
+    //ICHECKCAA(DivFleetSelBlockFlag);
+  Dd3FleetSelBlockFlag.allocate(1,Flagtimestep,1,DiYearNum,1,DiFleetNum+1,"Dd3FleetSelBlockFlag");
+ICHECKCAA(Dd3FleetSelBlockFlag);// record  1:DiFleetSelBlockNum     
+  DivFleetSelBlockAvailFlag.allocate(1,DiFleetSelBlockNum);
+   
+   DivFleetSelBlockAvailFlag=0;
+  // DiFleetSelAvailBlockNum=0;
+   for(i=1;i<=Flagtimestep;i++)
+   {
+        for(j=DiCalBeginYear;j<=DiCalEndYear;j++)
+        {
+            for(k=1;k<=DiFleetNum;k++)
+            {
+               if(Dd3CatchTotalO(k,i,j)>MINPOSITIVE)
+               {
+                    iL1=int(Dd3FleetSelBlockFlag(i,j,k+1)+0.01);
+                    if(iL1<1||iL1>DiFleetSelBlockNum)
+                            continue;
+                    if(DivFleetSelBlockAvailFlag(iL1)==0)
+                           DivFleetSelBlockAvailFlag(iL1)=1;
+               }
+            }
+        }
+   }
+  //   DiFleetSelAvailBlockNum=sum(DivFleetSelBlockAvailFlag);
+  DiTestValueCAA.allocate("DiTestValueCAA");
+ICHECKCAA(DiTestValueCAA);
+  #if Debug_Status
+     ICHECKCAA(DivCPUEBlockAvailFlag);
+     ICHECKCAA(DiFleetSelParaNumIni);
+     ICHECKCAA(DivFleetSelParaIndex_Ini);
+     ICHECKCAA(DivFleetSelBlockAvailFlag);
+     //ICHECKCAA(DiTestValueCAA);
+     //cout<<"Fishery Selecitivty Data Input Completed!"<<endl;
+     //cout<<"Fishery data end"<<endl;
+  #endif
+   if( DiTestValueCAA!=-22122)
+   {
+        cout<< "Input Error in Catch Data"<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-4);
+    }
+    RECORD("Catch Data Input End");
+    CloseCAA();
+    cout<<"Catch Data Input Completed"<<endl;
+ad_comm::change_datafile_name("./InputFiles/Survey_Data.DAT");
+  DiIndexNum.allocate("DiIndexNum");
+ICHECKIAA(DiIndexNum);
+  DivIndexUnitsFlag_Ini.allocate(1,DiIndexNum,"DivIndexUnitsFlag_Ini");
+ ICHECKIAA(DivIndexUnitsFlag_Ini);
+  DivIndexSelStartSizeBin_Ini.allocate(1,DiIndexNum,"DivIndexSelStartSizeBin_Ini");
+ ICHECKIAA(DivIndexSelStartSizeBin_Ini);
+  DivIndexSelEndSizeBin_Ini.allocate(1,DiIndexNum,"DivIndexSelEndSizeBin_Ini");
+ ICHECKIAA(DivIndexSelEndSizeBin_Ini);
+  DivAvailIndexFlag.allocate(1,DiIndexNum,"DivAvailIndexFlag");
+ ICHECKIAA(DivAvailIndexFlag);
+  DivIndexCompLikelihoodFlag_Ini.allocate(1,DiIndexNum,"DivIndexCompLikelihoodFlag_Ini");
+ICHECKIAA(DivIndexCompLikelihoodFlag_Ini);
+  DivIndexTotalLikelihoodFlag_Ini.allocate(1,DiIndexNum,"DivIndexTotalLikelihoodFlag_Ini");
+ ICHECKIAA( DivIndexTotalLikelihoodFlag_Ini);
+  DvIndexCompLambda_Ini.allocate(1,DiIndexNum,"DvIndexCompLambda_Ini");
+ICHECKIAA(DvIndexCompLambda_Ini);//*DvIndexTotalLambda(i)
+  DvIndexTotalLambda_Ini.allocate(1,DiIndexNum,"DvIndexTotalLambda_Ini");
+ICHECKIAA(DvIndexTotalLambda_Ini);
+  DiSurveyIndexLength.allocate("DiSurveyIndexLength");
+ICHECKIAA(DiSurveyIndexLength);
+  DmIndexAtSizeData_Ini.allocate(1,DiSurveyIndexLength,1,6+DiSizeBinNum,"DmIndexAtSizeData_Ini");
+ ICHECKIAA(DmIndexAtSizeData_Ini);
+  DiSexAtSizeLamda.allocate("DiSexAtSizeLamda");
+  DiIndexFlagSexComp.allocate("DiIndexFlagSexComp");
+  DmSexAtSizeData_Ini.allocate(1,DiYearNum,1,DiSizeBinNum,"DmSexAtSizeData_Ini");
+  DiIndexQBlockNum.allocate("DiIndexQBlockNum");
+ICHECKIAA(DiIndexQBlockNum);
+  DivIndexQChoiceFlag.allocate(1,DiIndexQBlockNum,"DivIndexQChoiceFlag");
+ICHECKIAA(DivIndexQChoiceFlag);
+  DimIndexQBlockFlag.allocate(1,DiYearNum,1,DiIndexNum+1,"DimIndexQBlockFlag");
+ICHECKIAA(DimIndexQBlockFlag)
+ DiAvailIndexNum=sum(DivAvailIndexFlag);  
+  DivAvailIndexQFlag.allocate(1,DiIndexQBlockNum);
+  DivIndexObsNum.allocate(1,DiAvailIndexNum);
+   //  if(DiIndexQBlockNum>0)//??????????????????
+      DivAvailIndexQFlag.initialize();
+   //  if(DiAvailIndexNum>0)//?????????????????????
+      DivIndexObsNum.initialize();
+   for(i=1;i<=DiSurveyIndexLength;i++)
+   {
+       ii=int(DmIndexAtSizeData_Ini(i,1)+0.01);//year
+       j=ii-DiBeginYear+1;
+       if(j< DiCalBeginYear||j>DiCalEndYear)
+               continue;
+       jj=int(DmIndexAtSizeData_Ini(i,2)+0.01);//indexnum
+       if(jj<1 ||jj>DiIndexNum)
+                continue;                  //check Index number
+       if(DivAvailIndexFlag(jj) && DmIndexAtSizeData_Ini(i,4)>MINPOSITIVE ) // zero or negative value for index means not included
+       {
+          lL2=sum(DivAvailIndexFlag(1,jj));
+          DivIndexObsNum(lL2)++;
+          kk=DimIndexQBlockFlag(j,jj+1);
+          if(kk>=1 && kk<=DiIndexQBlockNum )
+                 DivAvailIndexQFlag(kk)=1;
+       }
+   }
+   //DiAvailIndexQNum=sum(DivAvailIndexQFlag);
+  #if Debug_Status
+     ICHECKIAA(DivAvailIndexQFlag);
+     ICHECKIAA(DivIndexObsNum);
+     ICHECKIAA(DiAvailIndexNum);
+  #endif
+  DivAvailIndexMirrorOld.allocate(1,DiAvailIndexNum);
+    iL1=0;
+    for(i=1;i<=DiIndexNum;i++)
+    {
+         if(DivAvailIndexFlag(i))
+         {
+               iL1++;
+               DivAvailIndexMirrorOld(iL1)=i;
+         }     
+    }
+   #if Debug_Status
+      ICHECKIAA(DivAvailIndexMirrorOld);
+   #endif
+  DimIndexIndex.allocate(1,DiAvailIndexNum,1,DivIndexObsNum);
+  DmIndexTotalO.allocate(1,DiAvailIndexNum,1,DivIndexObsNum);
+  DmIndexTotalSigma2.allocate(1,DiAvailIndexNum,1,DivIndexObsNum);
+  DmIndexTotalSigma.allocate(1,DiAvailIndexNum,1,DivIndexObsNum);
+  DivIndexSelStartSizeBin.allocate(1,DiAvailIndexNum);
+  DivIndexSelEndSizeBin.allocate(1,DiAvailIndexNum);
+  DimIndexESSInput.allocate(1,DiAvailIndexNum,1,DivIndexObsNum);
+  DvIndexTotalLambda.allocate(1,DiAvailIndexNum);
+  DvIndexCompLambda.allocate(1,DiAvailIndexNum);
+  DivIndexCompLikelihoodFlag.allocate(1,DiAvailIndexNum);
+  DivIndexTotalLikelihoodFlag.allocate(1,DiAvailIndexNum);
+  DivIndexUnitsFlag.allocate(1,DiAvailIndexNum);
+  Dd3IndexMonthFlag.allocate(1,DiAvailIndexNum,1,DivIndexObsNum,1,2);
+  Dd3IndexAtSizeO.allocate(1,DiAvailIndexNum,1,DivIndexObsNum,1,DiSizeBinNum);
+  Dd3IndexPropAtSizeO.allocate(1,DiAvailIndexNum,1,DivIndexObsNum,1,DiSizeBinNum);
+  
+   //Dd3IndexAtSizeO.initialize();
+   //Dd3IndexPropAtSizeO.initialize();
+   //DivAvailIndexQChoiceFlag=0;
+   lL1=0;//Available Index
+   for(i=1;i<=DiIndexNum;i++)
+   {
+       if(DivAvailIndexFlag(i))
+       {
+            lL1++;
+           
+            DivIndexSelStartSizeBin(lL1)=DivIndexSelStartSizeBin_Ini(i);
+            DivIndexSelEndSizeBin(lL1)=DivIndexSelEndSizeBin_Ini(i);
+            DivIndexUnitsFlag(lL1)=DivIndexUnitsFlag_Ini(i);
+            //DivIndexMonthFlag(lL1)= DivIndexMonthFlag_Ini(i);//sgwj 2012-04-03
+            DvIndexTotalLambda(lL1)=DvIndexTotalLambda_Ini(i);
+            DvIndexCompLambda(lL1)=DvIndexCompLambda_Ini(i);
+            /////////////////////////////////////////////
+            DivIndexCompLikelihoodFlag(lL1)=DivIndexCompLikelihoodFlag_Ini(i);
+            DivIndexTotalLikelihoodFlag(lL1)=DivIndexTotalLikelihoodFlag_Ini(i);
+        //    DivIndexQChoiceFlag(lL1)=DivIndexQChoiceFlag_Ini(i);
+         }
+   }
+   //k=0; 
+   DivIndexObsNum.initialize();
+   Dd3IndexMonthFlag.initialize();
+   Dd3IndexAtSizeO.initialize();
+   Dd3IndexPropAtSizeO.initialize();
+   for(i=1;i<=DiSurveyIndexLength;i++)
+   {
+         ii=int(DmIndexAtSizeData_Ini(i,1)+0.01);//year
+         j=ii-DiBeginYear+1;
+         if(j< DiCalBeginYear||j>DiCalEndYear)
+               continue;
+        //////////////////////////////////////////////////
+         jj=int(DmIndexAtSizeData_Ini(i,2)+0.01);//indexnum
+         if(jj<1 ||jj>DiIndexNum)
+                continue;                  //check Index number
+         if(DivAvailIndexFlag(jj) && DmIndexAtSizeData_Ini(i,4)>MINPOSITIVE) // zero or negative value for index means not included
+         {
+              lL2=sum(DivAvailIndexFlag(1,jj));
+              DivIndexObsNum(lL2)++;
+              k= DivIndexObsNum(lL2);
+              DimIndexIndex(lL2,k)=j;
+              ///////////////////////////////////////////////////////////////
+              if(DmIndexAtSizeData_Ini(i,3)<0)
+              {//sgwj 2012-04-14
+                Dd3IndexMonthFlag(lL2,k,1)=-2;
+                Dd3IndexMonthFlag(lL2,k,2)=-2;    
+              }
+              else
+              {//sgwj 2012-04-14
+                   nTemp=0.0;
+                   for(iTemp=1;iTemp<=DiSeasonNum;iTemp++)
+                   {
+                         nTemp=DvMonthInSeason(iTemp)+nTemp;
+                         if(DmIndexAtSizeData_Ini(i,3)<nTemp)
+                         {
+                               Dd3IndexMonthFlag(lL2,k,1)=iTemp;
+                               Dd3IndexMonthFlag(lL2,k,2)= (nTemp-DmIndexAtSizeData_Ini(i,3)-DvMonthInSeason(iTemp))/DvMonthInSeason(iTemp);
+                               break;
+                         }
+                   }     
+              }
+              ///////////////////////////////////////////////////////////////
+              DmIndexTotalO(lL2,k)= DmIndexAtSizeData_Ini(i,4);
+              if(DmIndexAtSizeData_Ini(i,5)>MINPOSITIVE)
+                    DmIndexTotalSigma2(lL2,k)=DmIndexAtSizeData_Ini(i,5)* DmIndexAtSizeData_Ini(i,5);//log(DmIndexAtSizeData_Ini(i,4)* DmIndexAtSizeData_Ini(i,4)+1.0);
+              else
+                    DmIndexTotalSigma2(lL2,k)=SIGMA2FILL;
+                        
+             DmIndexTotalSigma(lL2,k)=sqrt( DmIndexTotalSigma2(lL2,k));
+             DimIndexESSInput(lL2,k)=int(DmIndexAtSizeData_Ini(i,6)+0.001);
+             nTemp=0.0;
+             for(ii=1;ii<=DiSizeBinNum;ii++)
+             {
+               Dd3IndexAtSizeO(lL2,k,ii)= DmIndexAtSizeData_Ini(i,6+ii);
+             }
+             nTemp=sum(Dd3IndexAtSizeO(lL2,k)(DivIndexSelStartSizeBin(lL2),DivIndexSelEndSizeBin(lL2)));
+             if(nTemp>0.0)
+             {
+                    for(iTemp=DivIndexSelStartSizeBin(lL2);iTemp<=DivIndexSelEndSizeBin(lL2);iTemp++)
+                         Dd3IndexPropAtSizeO(lL2,k,iTemp)=Dd3IndexAtSizeO(lL2,k,iTemp)/nTemp;  //??????????????  k --->j
+             }
+         }
+   }
+  #if Debug_Status
+        ICHECKIAA( DivIndexSelStartSizeBin);
+        ICHECKIAA( DivIndexSelEndSizeBin);
+       // ICHECKIAA( DivIndexMonthFlag);
+        ICHECKIAA( Dd3IndexMonthFlag);
+        ICHECKIAA( DivIndexUnitsFlag);
+        ICHECKIAA( DvIndexTotalLambda);
+        ICHECKIAA( DvIndexCompLambda);
+        //////////////////
+        ICHECKIAA( Dd3IndexAtSizeO);
+        ICHECKIAA( DimIndexIndex);
+        ICHECKIAA( DmIndexTotalO)
+        ICHECKIAA( DmIndexTotalSigma);
+        ICHECKIAA( DimIndexESSInput);
+        ICHECKIAA( Dd3IndexPropAtSizeO);
+     // exit(-99);
+  #endif
+  DivIndexFleetSelChoiceFlag_Ini.allocate(1,DiIndexNum,"DivIndexFleetSelChoiceFlag_Ini");
+ ICHECK(DivIndexFleetSelChoiceFlag_Ini)
+  DiIndexSelBlockNum.allocate("DiIndexSelBlockNum");
+ ICHECKIAA(DiIndexSelBlockNum);//!!DiIndexSelBlockNum=DiIndexNum;              //                 ->   ICHECKIAA(DiIndexSelBlockNum)
+  DivIndexSelFlag_Ini.allocate(1,DiIndexSelBlockNum,"DivIndexSelFlag_Ini");
+ ICHECKIAA(DivIndexSelFlag_Ini);
+  DivIndexSelParaIndex_Ini.allocate(1,DiIndexSelBlockNum);
+  DimIndexSelBlockFlag.allocate(1,DiYearNum,1,DiIndexNum+1,"DimIndexSelBlockFlag");
+ICHECKIAA(DimIndexSelBlockFlag);                                                                    //->  init_imatrix     DimIndexSelBlockFlag(1,DiYearNum,1,DiIndexNum+1)
+  DivIndexSelBlockAvailFlag.allocate(1,DiIndexSelBlockNum);
+  /*for(i=1;i<=DiYearNum;i++)                                    //sgwj 2012-04-14  delete 
+  {       
+      DimIndexSelBlockFlag(i,1)=i+DiBeginYear;                //sgwj 2012-04-14  delete 
+      for(j=2;j<=DiIndexNum+1;j++)                           //sgwj 2012-04-14  delete 
+         DimIndexSelBlockFlag(i,j)=j-1;                     //sgwj 2012-04-14  delete 
+  }*/                                                        //sgwj 2012-04-14  delete 
+  DivIndexSelBlockAvailFlag=0;
+  
+  for(j=1;j<=DiAvailIndexNum;j++)
+  {
+    for(i=1;i<=DivIndexObsNum(j);i++)
+    {
+          k=DimIndexIndex(j,i);
+          ii=DivAvailIndexMirrorOld(j);
+          if(DivIndexFleetSelChoiceFlag_Ini(ii)<0)
+          {//not used the fleet selectivity
+             jj=DimIndexSelBlockFlag(k,ii+1);
+             if(jj>=1&&jj<=DiIndexSelBlockNum)
+                 DivIndexSelBlockAvailFlag(jj)=1;
+          }
+     }
+  }
+  DiIndexSelParaNumIni=0;
+  for (i=1;i<=DiIndexSelBlockNum;i++)
+  {
+       DivIndexSelParaIndex_Ini(i)=DiIndexSelParaNumIni;
+       if( DivIndexSelFlag_Ini(i)==1) DiIndexSelParaNumIni+=DiSizeBinNum;
+       if( DivIndexSelFlag_Ini(i)==2) DiIndexSelParaNumIni+=2;
+       if( DivIndexSelFlag_Ini(i)==3) DiIndexSelParaNumIni+=4;
+  }
+  #if Debug_Status
+        //ICHECKIAA(DivIndexFleetSelChoiceFlag_Ini)
+        ICHECKIAA(DiIndexSelParaNumIni);
+        ICHECKIAA(DivIndexSelParaIndex_Ini);
+        ICHECKIAA(DivIndexSelBlockAvailFlag);
+      
+  #endif
+  DivAvailIndexSelIndexOld.allocate(1,DiAvailIndexNum);
+  DivIndexFleetSelChoiceFlag.allocate(1,DiAvailIndexNum);
+   
+  lL1=0;
+  for (i=1;i<=DiIndexNum;i++)
+  {
+      if(DivAvailIndexFlag(i))
+      {
+         lL1++;
+         DivIndexFleetSelChoiceFlag(lL1)=DivIndexFleetSelChoiceFlag_Ini(i);
+         DivAvailIndexSelIndexOld(lL1)=i;    //which Survey selectivity block to be used.(At present,each survey have only one selectivity) 
+      }
+  }
+  // DiIndexSelParaNumP= DiIndexSelParaNum;
+  DiTestValueIAA.allocate("DiTestValueIAA");
+ICHECKIAA(DiTestValueIAA);
+    #if Debug_Status
+        if(DiAvailIndexNum>0)
+        {
+           ICHECKIAA(DivIndexFleetSelChoiceFlag);
+           ICHECKIAA(DivAvailIndexSelIndexOld);
+        }
+        cout<<"Survey Data Input Completed"<<endl;
+    #endif
+    if( DiTestValueIAA!=-22122)
+    {
+        cout<< "Input Error in Survey Index At Age  Part"<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-5);
+    }
+    RECORD("Survey index Data End!");
+    CloseIAA();
+    if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/BRP_Data_Year.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/BRP_Data_Season.DAT");}
+  DnFmax.allocate("DnFmax");
+ICHECKOGD(DnFmax)
+  DiBPRSelectivityFlag.allocate("DiBPRSelectivityFlag");
+ICHECKOGD( DiBPRSelectivityFlag)
+  //if( DiBPRSelectivityFlag) 
+  //{ 
+      lL2=DiSizeBinNum; 
+      lL1=Flagtimestep;
+  //}
+  //else
+  // {
+  //     lL2=0;
+  //     lL1=0;
+  // }
+  DmBPRSelectivityIni.allocate(1,lL1,1,lL2,"DmBPRSelectivityIni");
+if( DiBPRSelectivityFlag==-1) ICHECKOGD(DmBPRSelectivityIni);
+  DiBPRPeriod.allocate("DiBPRPeriod");
+ICHECKOGD( DiBPRPeriod);
+  DiBPRCalYear.allocate("DiBPRCalYear");
+ICHECKOGD(DiBPRCalYear)
+  DvFRInSeason.allocate(1,Flagtimestep,"DvFRInSeason");
+ ICHECKOGD(DvFRInSeason)
+  DivBPRBlockGrowthMatrix.allocate(1,Flagtimestep,"DivBPRBlockGrowthMatrix");
+ ICHECKOGD(DivBPRBlockGrowthMatrix)
+  DiTestValueOGD.allocate("DiTestValueOGD");
+ ICHECKOGD(DiTestValueOGD)
+    if(DiBPRCalYear >200)
+         DiBPRCalYear =DiBPRCalYear -DiBeginYear+1;
+    if(DiBPRCalYear<DiCalBeginYear)
+          DiBPRCalYear=DiCalBeginYear;
+    if(DiBPRCalYear>DiCalEndYear)
+          DiBPRCalYear=DiCalEndYear;
+    nTemp=sum(DvFRInSeason);
+    if(nTemp>0.0)
+         DvFRInSeason=DvFRInSeason/nTemp;
+    else
+    {
+        cout<< "Error in Other Guess Data "<<endl;
+        RECORD("Data Input Error, the DvFRInSeason not larger than 0.0");
+        CloseRecord();
+        exit(-61);
+    }
+    //ICHECKOGD(DvFRInSeason);
+    if(DiTestValueOGD!=-22122)
+    {
+        cout<< "Error in Other Guess Data "<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-66);
+    }
+    
+     #if Debug_Status
+        ICHECKOGD(DvFRInSeason);
+        ICHECKOGD(DiBPRCalYear);
+        cout<<"Biology Reference Point Data Input Completed"<<endl;
+     #endif 
+    if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/GrowthMatrix_Year.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/GrowthMatrix_Season.DAT");}
+  DiGrowthMatrixFlag.allocate("DiGrowthMatrixFlag");
+ICHECKGM(DiGrowthMatrixFlag);
+  DiGrowthMatrixBlockNum.allocate("DiGrowthMatrixBlockNum");
+ICHECKGM(DiGrowthMatrixBlockNum);
+   if (1)
+      {
+       L1=1;
+      }
+   else
+      {
+       L1=1;
+      }
+  DimGrowthMatrixBlockFlag.allocate(1,DiYearNum,1,Flagtimestep+1,"DimGrowthMatrixBlockFlag");
+ICHECKGM( DimGrowthMatrixBlockFlag);
+  DvGrowthTimeAsYear.allocate(1,DiSeasonNum,"DvGrowthTimeAsYear");
+ICHECKGM(DvGrowthTimeAsYear);//alpha
+   /* for(i=1;i<=DiSeasonNum;i++)
+    {//delete sgwj 2012-04-14
+         if(i==1)
+           DvGrowthTimeAsYear(i)=0.01;
+         else if(i==2)
+           DvGrowthTimeAsYear[i]=0.30;
+         else if(i==3)
+           DvGrowthTimeAsYear[i]=0.30;
+         else if(i==4)
+           DvGrowthTimeAsYear[i]=0.39;
+         else
+           DvGrowthTimeAsYear[i]=0.0;
+    }*/
+     if(!DiGrowthMatrixFlag)
+     {
+            lL1= DiGrowthMatrixBlockNum ;
+            lL2=DiSizeBinNum;
+            ii=DiSizeBinNum;
+     }
+        else
+      {
+           lL1=0;
+           lL2=0;
+           ii=0;
+      }
+  Dd3GrowthMatrix_Ini.allocate(1,lL1,1,lL2,1,ii,"Dd3GrowthMatrix_Ini");
+ICHECKGM(Dd3GrowthMatrix_Ini);                                                                  //                     3  0.0  0.0 0.3 0.5  0.2
+  iTestValueG.allocate("iTestValueG");
+ ICHECKGM(iTestValueG)
+    if( iTestValueG !=-22122)
+    {
+        cout<< "Error in Input Data "<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-7);
+    }
+   #if Debug_Status
+       cout<<"Growth Matrix Input Completed"<<endl;
+   #endif
+   CloseGM();
+    if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/Prior_Year.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/Prior_Season.DAT");}
+   if(!DiNaturalMortalityFlag)     
+   {
+        lL1= Flagtimestep;   
+        lL2= 7; //  
+   }
+   else
+   {
+         lL1=0;
+         lL2=0;
+   }
+  DmLorenzenA_Ini.allocate(1,lL1,1,7,"DmLorenzenA_Ini");
+ if(!DiNaturalMortalityFlag)  ICHECKPIR(DmLorenzenA_Ini);
+  DvLorenzenAValue.allocate(1,lL1);
+  DvLorenzenALo.allocate(1,lL1);
+  DvLorenzenAHi.allocate(1,lL1);
+  DivLorenzenAPh.allocate(1,lL1);
+  DvLorenzenASigma2.allocate(1,lL1);
+  DvLorenzenASigma.allocate(1,lL1);
+  DvLorenzenALambda.allocate(1,lL1);
+  DivLorenzenALikelihoodFlag.allocate(1,lL1);
+  DmLorenzenB_Ini.allocate(1,lL1,1,lL2,"DmLorenzenB_Ini");
+ if(!DiNaturalMortalityFlag)  ICHECKGD(DmLorenzenB_Ini);
+  DvLorenzenBValue.allocate(1,lL1);
+  DvLorenzenBLo.allocate(1,lL1);
+  DvLorenzenBHi.allocate(1,lL1);
+  DivLorenzenBPh.allocate(1,lL1);
+  DvLorenzenBSigma2.allocate(1,lL1);
+  DvLorenzenBSigma.allocate(1,lL1);
+  DvLorenzenBLambda.allocate(1,lL1);
+  DivLorenzenBLikelihoodFlag.allocate(1,lL1);
+   if(!DiNaturalMortalityFlag)     
+   {//2011-12-15
+       for(i=1;i<=lL1;i++)
+       {////////////////////////////////A/////////////////////////////////////
+          DvLorenzenAValue(i)=DmLorenzenA_Ini(i,1);
+          DvLorenzenALo(i)= DmLorenzenA_Ini(i,2);
+          DvLorenzenAHi(i)= DmLorenzenA_Ini(i,3);
+          if(DmLorenzenA_Ini(i,4)>0.0)
+              DivLorenzenAPh(i)= int(DmLorenzenA_Ini(i,4)+0.01);
+          else
+              DivLorenzenAPh(i)= int(DmLorenzenA_Ini(i,4)-0.01);
+          if(DmLorenzenA_Ini(i,5)>MINPOSITIVE)
+               DvLorenzenASigma2(i)=DmLorenzenA_Ini(i,5)*DmLorenzenA_Ini(i,5);//log(DmLorenzenA_Ini(i,5)*DmLorenzenA_Ini(i,5)+1.0);
+          else
+              DvLorenzenASigma2(i)=SIGMA2FILL;
+          DvLorenzenASigma(i)=sqrt(DvLorenzenASigma2(i));
+          DvLorenzenALambda(i)=DmLorenzenA_Ini(i,6);
+          DivLorenzenALikelihoodFlag(i)=int(DmLorenzenA_Ini(i,7)+0.01);
+          //////////////////////////B////////////////////////////////////////////
+          DvLorenzenBValue(i)=DmLorenzenB_Ini(i,1);
+          DvLorenzenBLo(i)= DmLorenzenB_Ini(i,2);
+          DvLorenzenBHi(i)= DmLorenzenB_Ini(i,3);
+          if(DmLorenzenB_Ini(i,4)>0.0)
+               DivLorenzenBPh(i)= int(DmLorenzenB_Ini(i,4)+0.01);
+          else
+               DivLorenzenBPh(i)= int(DmLorenzenB_Ini(i,4)-0.01);
+    
+         if(DmLorenzenB_Ini(i,5)>MINPOSITIVE)
+               DvLorenzenBSigma2(i)=log(DmLorenzenB_Ini(i,5)*DmLorenzenB_Ini(i,5)+1.0);
+          else
+              DvLorenzenBSigma2(i)=SIGMA2FILL;
+          DvLorenzenBSigma(i)=sqrt( DvLorenzenBSigma2(i));
+          DvLorenzenBLambda(i)=DmLorenzenB_Ini(i,6);
+          DivLorenzenBLikelihoodFlag(i)=int(DmLorenzenB_Ini(i,7)+0.01);
+       }    
+   } 
+   #if Debug_Status
+      if(!DiNaturalMortalityFlag)
+      {
+        ICHECKPIR(DvLorenzenAValue);
+        ICHECKPIR(DvLorenzenALo);
+        ICHECKPIR(DvLorenzenAHi);
+        ICHECKPIR(DivLorenzenAPh);
+        ICHECKPIR(DvLorenzenASigma);
+        ICHECKPIR(DvLorenzenALambda);
+        ICHECKPIR(DivLorenzenALikelihoodFlag);
+        ICHECKPIR(DvLorenzenBValue);
+        ICHECKPIR(DvLorenzenBLo);
+        ICHECKPIR(DvLorenzenBHi);
+        ICHECKPIR(DivLorenzenBPh);
+        ICHECKPIR(DvLorenzenBSigma);
+        ICHECKPIR(DvLorenzenBLambda);
+        ICHECKPIR(DivLorenzenBLikelihoodFlag);
+      }
+   #endif
+lL1=2;
+  DmRSPara_Ini.allocate(1,lL1,1,7,"DmRSPara_Ini");
+ICHECKPIR(DmRSPara_Ini);                           //  belta: initial value/lower boundary/upper boundary/ phase/sd/ lambda/likelihood flag
+  DvRSParaValue.allocate(1,lL1);
+  DvRSParaLo.allocate(1,lL1);
+  DvRSParaHi.allocate(1,lL1);
+  DivRSParaPh.allocate(1,lL1);
+  DvRSParaSigma2.allocate(1,lL1);
+  DvRSParaSigma.allocate(1,lL1);
+  DvRSParaLambda.allocate(1,lL1);
+  DivRSParaLikelihoodFlag.allocate(1,lL1);
+   lL1=2;
+   for(i=1;i<=lL1;i++)
+   {
+        if(DmRSPara_Ini(i,1)>MINPOSITIVE)
+              DvRSParaValue(i)=log(DmRSPara_Ini(i,1));
+        else
+              DvRSParaValue(i)=log(2752.0);//sgwj debug
+        if(DmRSPara_Ini(i,2)>MINPOSITIVE)
+                    DvRSParaLo(i)   =log(DmRSPara_Ini(i,2));
+        else
+                    DvRSParaLo(i)   =-15.0;
+        
+        if(DmRSPara_Ini(i,3)>MINPOSITIVE)
+               DvRSParaHi(i)   =log(DmRSPara_Ini(i,3));
+        else
+               DvRSParaHi(i)   =log(20000.0); //sgwj debug 
+        if(DiRSFlag ==1&& i==2)
+             DivRSParaPh(i)  =-2;
+        else
+             DivRSParaPh(i)  =DmRSPara_Ini(i,4)>MINPOSITIVE ? int(DmRSPara_Ini(i,4)+0.01) :int(DmRSPara_Ini(i,4)-0.01);
+        if(DmRSPara_Ini(i,5)> MINPOSITIVE)
+             DvRSParaSigma2(i) = DmRSPara_Ini(i,5)*DmRSPara_Ini(i,5);//log( DmRSPara_Ini(i,5)*DmRSPara_Ini(i,5)+1.0);
+        else
+            DvRSParaSigma2(i) = SIGMA2FILL;
+        DvRSParaSigma(i)=sqrt(DvRSParaSigma2(i));
+        DvRSParaLambda(i) = DmRSPara_Ini(i,6);
+        DivRSParaLikelihoodFlag(i)=int(DmRSPara_Ini(i,7)+0.01); 
+   }
+   #if Debug_Status
+     ICHECKPIR(DvRSParaValue);
+     ICHECKPIR(DvRSParaLo);
+     ICHECKPIR(DvRSParaHi);
+     ICHECKPIR(DivRSParaPh);
+     ICHECKPIR(DvRSParaSigma2);
+     ICHECKPIR(DvRSParaLambda);
+     ICHECKPIR(DivRSParaLikelihoodFlag);
+   #endif
+  DmRSEnv_Ini.allocate(1,DiEnvNum,1,7,"DmRSEnv_Ini");
+ICHECKPIR(DmRSPara_Ini);                           //  belta: initial value/lower boundary/upper boundary/ phase/sd/ lambda/likelihood flag
+  DvRSEnvValue.allocate(1,DiEnvNum);
+  DvRSEnvLo.allocate(1,DiEnvNum);
+  DvRSEnvHi.allocate(1,DiEnvNum);
+  DivRSEnvPh.allocate(1,DiEnvNum);
+  DvRSEnvSigma2.allocate(1,DiEnvNum);
+  DvRSEnvSigma.allocate(1,DiEnvNum);
+  DvRSEnvLambda.allocate(1,DiEnvNum);
+  DivRSEnvLikelihoodFlag.allocate(1,DiEnvNum);
+   lL1=DiEnvNum;
+   for(i=1;i<=lL1;i++)
+   {
+        if(DmRSEnv_Ini(i,1)>MINPOSITIVE)
+              DvRSEnvValue(i)=log(DmRSEnv_Ini(i,1));
+        else
+              DvRSEnvValue(i)=log(2752.0);//sgwj debug
+        if(DmRSEnv_Ini(i,2)>MINPOSITIVE)
+                    DvRSEnvLo(i)   =log(DmRSEnv_Ini(i,2));
+        else
+                    DvRSEnvLo(i)   =-15.0;
+        
+        if(DmRSEnv_Ini(i,3)>MINPOSITIVE)
+               DvRSEnvHi(i)   =log(DmRSEnv_Ini(i,3));
+        else
+               DvRSEnvHi(i)   =log(20000.0); //sgwj debug 
+        if(DiRSFlag!=4&&i!=5&&i!=6)
+             DivRSEnvPh(i)=-2;
+        else
+             DivRSEnvPh(i)  =DmRSEnv_Ini(i,4)>MINPOSITIVE ? int(DmRSEnv_Ini(i,4)+0.01) :int(DmRSEnv_Ini(i,4)-0.01);
+        if(DmRSEnv_Ini(i,5)> MINPOSITIVE)
+             DvRSEnvSigma2(i) = DmRSEnv_Ini(i,5)*DmRSEnv_Ini(i,5);//log( DmRSPara_Ini(i,5)*DmRSPara_Ini(i,5)+1.0);
+        else
+            DvRSEnvSigma2(i) = SIGMA2FILL;
+        DvRSEnvSigma(i)=sqrt(DvRSEnvSigma2(i));
+        DvRSEnvLambda(i) = DmRSEnv_Ini(i,6);
+        DivRSEnvLikelihoodFlag(i)=int(DmRSEnv_Ini(i,7)+0.01); 
+   }
+   #if Debug_Status
+     ICHECKPIR(DvRSEnvValue);
+     ICHECKPIR(DvRSEnvLo);
+     ICHECKPIR(DvRSEnvHi);
+     ICHECKPIR(DivRSEnvPh);
+     ICHECKPIR(DvRSEnvSigma2);
+     ICHECKPIR(DvRSEnvLambda);
+     ICHECKPIR(DivRSEnvLikelihoodFlag);
+   #endif
+  DvRecruitmentRh_Ini.allocate(1,7,"DvRecruitmentRh_Ini");
+ICHECKPIR(DvRecruitmentRh_Ini)                    //    RDev(t)=sqrt( nRecruitmentR) *Rdev(t-1) -sqrt(1- nRecruitmentR) eps(t)                                          //     initial value/lower boundary/upper boundary/ phase/CV/ lambda/likelihood flag
+  DvRecruitLogDevs_Ini.allocate(1,7,"DvRecruitLogDevs_Ini");
+ICHECKPIR(DvRecruitLogDevs_Ini);
+   DiRecruitLogDevsPhase =DvRecruitLogDevs_Ini(4)>MINPOSITIVE?int(DvRecruitLogDevs_Ini(4)+0.01):int(DvRecruitLogDevs_Ini(4)-0.01);
+   DnRecruitLogDevsLambda=DvRecruitLogDevs_Ini(6);
+   DiRecrDevLikelihoodFlag=int(DvRecruitLogDevs_Ini(7)+0.01);
+   //for(i=DiCalBeginYear;i<=DiCalEndYear;i++)
+   {     
+         if(DvRecruitLogDevs_Ini(5)>MINPOSITIVE)
+             DnRecruitLogDevsSigma2=DvRecruitLogDevs_Ini(5)*DvRecruitLogDevs_Ini(5);//log(DvRecruitLogDevs_Ini(5)*DvRecruitLogDevs_Ini(5)+1.0);
+         else
+             DnRecruitLogDevsSigma2=SIGMA2FILL;
+          DnRecruitLogDevsSigma=sqrt(DnRecruitLogDevsSigma2);
+   }
+   //DiRecrDevLikelihoodFlag=int(DvRecruitLogDevs_Ini(7)+0.01)
+  #if Debug_Status
+     ICHECKPIR(DiRecruitLogDevsPhase);
+     ICHECKPIR(DnRecruitLogDevsSigma);
+     ICHECKPIR(DnRecruitLogDevsLambda);
+     ICHECKPIR(DiRecrDevLikelihoodFlag);
+  #endif
+  DvRecruitLogDevsSD_Ini.allocate(1,7,"DvRecruitLogDevsSD_Ini");
+ICHECKPIR(DvRecruitLogDevsSD_Ini);
+  DmCPUEBiomassQE1_Ini.allocate(1,DiCPUEBlockNum,1,7,"DmCPUEBiomassQE1_Ini");
+ICHECKPIR(DmCPUEBiomassQE1_Ini);
+  DivCPUEQBiomassE1Ph.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Lo.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Hi.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Value.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Sigma2.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Sigma.allocate(1,DiCPUEBlockNum);
+  DvCPUEQBiomassE1Lambda.allocate(1,DiCPUEBlockNum);
+  DivCPUEQBiomassE1LikelihoodFlag.allocate(1,DiCPUEBlockNum);
+  
+   ii=0;
+   for(i=1;i<=DiCPUEBlockNum;i++)
+   {
+                            DvCPUEQBiomassE1Value(i)=DmCPUEBiomassQE1_Ini(i,1);
+                            DvCPUEQBiomassE1Lo(i)   =DmCPUEBiomassQE1_Ini(i,2);
+                            DvCPUEQBiomassE1Hi(i)   =DmCPUEBiomassQE1_Ini(i,3);
+                            if(DivCPUEBlockAvailFlag(i))
+                                DivCPUEQBiomassE1Ph(i)=DmCPUEBiomassQE1_Ini(i,4)>0.0?int(DmCPUEBiomassQE1_Ini(i,4)+0.1):int(DmCPUEBiomassQE1_Ini(i,4)-0.1);
+                            else
+                                DivCPUEQBiomassE1Ph(i)=-2;
+                            if(DmCPUEBiomassQE1_Ini(i,5)>MINPOSITIVE)
+                                DvCPUEQBiomassE1Sigma2(i)=DmCPUEBiomassQE1_Ini(i,5)*DmCPUEBiomassQE1_Ini(i,5);//log(DmCPUEBiomassQE1_Ini(i,5)*DmCPUEBiomassQE1_Ini(i,5)+1.0);
+                            else
+                                DvCPUEQBiomassE1Sigma2(i)=SIGMA2FILL;
+                            DvCPUEQBiomassE1Sigma(i)=sqrt( DvCPUEQBiomassE1Sigma2(i));
+                            DvCPUEQBiomassE1Lambda(i)=DmCPUEBiomassQE1_Ini(i,6);
+                            DivCPUEQBiomassE1LikelihoodFlag(i)=int(DmCPUEBiomassQE1_Ini(i,7)+0.1);
+   }
+   
+    #if Debug_Status
+      ICHECKPIR(DvCPUEQBiomassE1Value);
+      ICHECKPIR(DvCPUEQBiomassE1Lo);
+      ICHECKPIR(DvCPUEQBiomassE1Hi);
+      ICHECKPIR(DivCPUEQBiomassE1Ph);
+      ICHECKPIR(DvCPUEQBiomassE1Sigma);
+      ICHECKPIR(DvCPUEQBiomassE1Lambda);
+      ICHECKPIR(DivCPUEQBiomassE1LikelihoodFlag);
+      //exit(-99);
+    #endif 
+  DmFleetSelParaData_Ini.allocate(1,DiFleetSelParaNumIni,1,7,"DmFleetSelParaData_Ini");
+ ICHECKPIR( DmFleetSelParaData_Ini);
+  DvFleetSelPara_Ini.allocate(1,DiFleetSelParaNumIni);
+  DvFleetSelParaBLo.allocate(1,DiFleetSelParaNumIni);
+  DvFleetSelParaBHi.allocate(1,DiFleetSelParaNumIni);
+  DivFleetSelParaPh.allocate(1,DiFleetSelParaNumIni);
+  DvFleetSelParaLambda.allocate(1,DiFleetSelParaNumIni);
+  DvFleetSelParaSigma2.allocate(1,DiFleetSelParaNumIni);
+  DvFleetSelParaSigma.allocate(1,DiFleetSelParaNumIni);
+  DivFleetSelParaLikelihoodFlag.allocate(1,DiFleetSelParaNumIni);
+  // lL2=1;
+   for(i=1;i<=DiFleetSelBlockNum;i++)
+   {
+       lL1=DivFleetSelParaIndex_Ini(i)+1;//(i-1)*(DiSizeBinNum+2+4)+1;
+       switch( DivFleetSelBlockFlag(i))
+       {
+         case 1:
+           for(j=1;j<=DiSizeBinNum;j++)
+           {
+              DvFleetSelPara_Ini(lL1)= DmFleetSelParaData_Ini(lL1,1);
+              DvFleetSelParaBLo(lL1)=DmFleetSelParaData_Ini(lL1,2);
+              DvFleetSelParaBHi(lL1)=DmFleetSelParaData_Ini(lL1,3);
+              if(!DivFleetSelBlockAvailFlag(i))
+                  DivFleetSelParaPh(lL1)=-2;
+              else
+                  DivFleetSelParaPh(lL1)= DmFleetSelParaData_Ini(lL1,4)> 0.0 ? int( DmFleetSelParaData_Ini(lL1,4)+0.01): int( DmFleetSelParaData_Ini(lL1,4)-0.01);
+              if( DmFleetSelParaData_Ini(lL1,5)> MINPOSITIVE)
+                  DvFleetSelParaSigma2(lL1)=DmFleetSelParaData_Ini(lL1,5)* DmFleetSelParaData_Ini(lL1,5);//log( DmFleetSelParaData_Ini(lL1,5)* DmFleetSelParaData_Ini(lL1,5)+1.0);
+              else
+                  DvFleetSelParaSigma2(lL1)=SIGMA2FILL;
+              DvFleetSelParaSigma(lL1)=sqrt(DvFleetSelParaSigma2(lL1));
+              DvFleetSelParaLambda(lL1)= DmFleetSelParaData_Ini(lL1,6); 
+              DivFleetSelParaLikelihoodFlag(lL1)=int(DmFleetSelParaData_Ini(lL1,7)+0.1); 
+            //  lL2++;
+              lL1++;
+           }
+           break;
+         case 2:
+          // lL1=lL1+DiSizeBinNum;
+           for(j=1;j<=2;j++)
+           {
+              DvFleetSelPara_Ini(lL1)= DmFleetSelParaData_Ini(lL1,1);
+              DvFleetSelParaBLo(lL1)=DmFleetSelParaData_Ini(lL1,2);
+              DvFleetSelParaBHi(lL1)=DmFleetSelParaData_Ini(lL1,3);
+              if(!DivFleetSelBlockAvailFlag(i))
+                  DivFleetSelParaPh(lL1)=-2;
+              else
+                  DivFleetSelParaPh(lL1)= DmFleetSelParaData_Ini(lL1,4)>0.0 ? int( DmFleetSelParaData_Ini(lL1,4)+0.01) : int(DmFleetSelParaData_Ini(lL1,4) -0.01);
+             
+              if( DmFleetSelParaData_Ini(lL1,5)> MINPOSITIVE)
+                  DvFleetSelParaSigma2(lL1)= DmFleetSelParaData_Ini(lL1,5)* DmFleetSelParaData_Ini(lL1,5);//log( DmFleetSelParaData_Ini(lL1,5)* DmFleetSelParaData_Ini(lL1,5)+1.0);
+              else
+                  DvFleetSelParaSigma2(lL1)=SIGMA2FILL;
+              DvFleetSelParaSigma(lL1)=sqrt(DvFleetSelParaSigma2(lL1));
+   
+              DvFleetSelParaLambda(lL1)= DmFleetSelParaData_Ini(lL1,6); 
+              DivFleetSelParaLikelihoodFlag(lL1)=int(DmFleetSelParaData_Ini(lL1,7)+0.1); //DvFleetSelParaLikeliFlag(lL2)=DmFleetSelParaData_Ini(lL1,7); 
+             // lL2++;
+              lL1++;
+           }
+           break;
+          case 3:
+          // lL1=lL1+DiSizeBinNum+2;
+           for(j=1;j<=4;j++)
+           {
+              DvFleetSelPara_Ini(lL1)= DmFleetSelParaData_Ini(lL1,1);
+              DvFleetSelParaBLo(lL1)= DmFleetSelParaData_Ini(lL1,2);
+              DvFleetSelParaBHi(lL1)= DmFleetSelParaData_Ini(lL1,3);
+              if(!DivFleetSelBlockAvailFlag(i))
+                  DivFleetSelParaPh(lL1)=-2;
+              else
+                  DivFleetSelParaPh(lL1)=DmFleetSelParaData_Ini(lL1,4)> 0.0 ? int(DmFleetSelParaData_Ini(lL1,4)+0.01) :int(DmFleetSelParaData_Ini(lL1,4)-0.01);
+             
+              if( DmFleetSelParaData_Ini(lL1,5)> MINPOSITIVE)
+                  DvFleetSelParaSigma2(lL1)=DmFleetSelParaData_Ini(lL1,5)*DmFleetSelParaData_Ini(lL1,5);//log(DmFleetSelParaData_Ini(lL1,5)*DmFleetSelParaData_Ini(lL1,5)+1.0);
+              else
+                  DvFleetSelParaSigma2(lL1)=SIGMA2FILL;
+              DvFleetSelParaSigma(lL1)=sqrt(DvFleetSelParaSigma2(lL1));
+              DvFleetSelParaLambda(lL1)= DmFleetSelParaData_Ini(lL1,6); 
+              DivFleetSelParaLikelihoodFlag(lL1)=int(DmFleetSelParaData_Ini(lL1,7)+0.1); //DvFleetSelParaLikeliFlag(lL2)=DmFleetSelParaData_Ini(lL1,7); 
+            //  lL2++;
+              lL1++;
+           }
+           break;
+       }
+    }
+  #if Debug_Status
+     ICHECKPIR(DvFleetSelPara_Ini);
+     ICHECKPIR(DvFleetSelParaBLo);
+     ICHECKPIR(DvFleetSelParaBHi);
+     //ICHECKDEB(DivFleetSelParaPhase);
+     ICHECKPIR(DvFleetSelParaSigma);
+     ICHECKPIR(DvFleetSelParaLambda);
+  #endif
+   RECORD("Fishery selectivity");
+   //
+  DmIndexQE1Block_Ini.allocate(1,DiIndexQBlockNum,1,7,"DmIndexQE1Block_Ini");
+ICHECKPIR(DmIndexQE1Block_Ini)
+  DvQBiomassE1Value.allocate(1,DiIndexQBlockNum);
+  DvQBiomassE1Lo.allocate(1,DiIndexQBlockNum);
+  DvQBiomassE1Hi.allocate(1,DiIndexQBlockNum);
+  DivQBiomassE1Ph.allocate(1,DiIndexQBlockNum);
+  DvQBiomassE1Sigma2.allocate(1,DiIndexQBlockNum);
+  DvQBiomassE1Sigma.allocate(1,DiIndexQBlockNum);
+  DvQBiomassE1Lambda.allocate(1,DiIndexQBlockNum);
+  DivQBiomassE1LikelihoodFlag.allocate(1,DiIndexQBlockNum);
+   for(i=1;i<=DiIndexQBlockNum;i++)
+   {
+        //  j=DivAvailIndexQMirrorOld(i);
+          DvQBiomassE1Value(i)   =  DmIndexQE1Block_Ini(i,1);
+          DvQBiomassE1Lo(i)      =  DmIndexQE1Block_Ini(i,2);
+          DvQBiomassE1Hi(i)      =  DmIndexQE1Block_Ini(i,3);
+          
+          if( DivAvailIndexQFlag(i))
+                DivQBiomassE1Ph(i)     =  DmIndexQE1Block_Ini(i,4)>MINPOSITIVE ? int(DmIndexQE1Block_Ini(i,4)+0.01) :int(DmIndexQE1Block_Ini(i,4)-0.01);
+          else
+                DivQBiomassE1Ph(i)     =-2;
+          if( DmIndexQE1Block_Ini(i,5)>MINPOSITIVE)
+                   DvQBiomassE1Sigma2(i)  = DmIndexQE1Block_Ini(i,5)*DmIndexQE1Block_Ini(i,5);//log( DmIndexQE1Block_Ini(i,5)*DmIndexQE1Block_Ini(i,5)+1.0);
+          else
+                   DvQBiomassE1Sigma2(i) = SIGMA2FILL;
+         
+          DvQBiomassE1Sigma(i)   =  sqrt(DvQBiomassE1Sigma2(i));
+          DvQBiomassE1Lambda(i)  =  DmIndexQE1Block_Ini(i,6); 
+          DivQBiomassE1LikelihoodFlag(i)  = int( DmIndexQE1Block_Ini(i,7)+0.1); 
+          //DivAvailIndexQChoiceFlag
+  }
+  #if Debug_Status
+      ICHECKPIR(DvQBiomassE1Value);
+      ICHECKPIR(DvQBiomassE1Lo);
+      ICHECKPIR(DvQBiomassE1Hi);
+      ICHECKPIR(DivQBiomassE1Ph);
+      ICHECKPIR(DvQBiomassE1Sigma);
+      ICHECKPIR(DvQBiomassE1Lambda);
+      ICHECKPIR(DivQBiomassE1LikelihoodFlag);
+  #endif
+  DmIndexSelParaData_Ini.allocate(1,DiIndexSelParaNumIni,1,7,"DmIndexSelParaData_Ini");
+ ICHECKPIR( DmIndexSelParaData_Ini);
+  DvIndexSelPara_Ini.allocate(1,DiIndexSelParaNumIni);
+  DvIndexSelParaBLo.allocate(1,DiIndexSelParaNumIni);
+  DvIndexSelParaBHi.allocate(1,DiIndexSelParaNumIni);
+  DivIndexSelParaPh.allocate(1,DiIndexSelParaNumIni);
+  DvIndexSelParaLambda.allocate(1,DiIndexSelParaNumIni);
+  DvIndexSelParaSigma2.allocate(1,DiIndexSelParaNumIni);
+  DvIndexSelParaSigma.allocate(1,DiIndexSelParaNumIni);
+  DivIndexSelParaLikelihoodFlag.allocate(1,DiIndexSelParaNumIni);
+  DivEstIndexPropFlag.allocate(1,DiAvailIndexNum);
+   DivEstIndexPropFlag.initialize();
+   DvIndexSelParaLambda.initialize(); 
+   
+  // DivIndexSelParaPhase=-2;//  
+   for(i=1;i<=DiIndexSelParaNumIni;i++)
+   {//DivIndexSelBlockAvailFlag
+                              lL1=lL2=i; 
+                              DvIndexSelPara_Ini(lL2)=  DmIndexSelParaData_Ini(lL1,1);
+                              DvIndexSelParaBLo(lL2) =  DmIndexSelParaData_Ini(lL1,2);
+                              DvIndexSelParaBHi(lL2) =  DmIndexSelParaData_Ini(lL1,3);
+                              DivIndexSelParaPh(lL2)=DmIndexSelParaData_Ini(lL1,4) > MINPOSITIVE? int( DmIndexSelParaData_Ini(lL1,4)+0.01) :int( DmIndexSelParaData_Ini(lL1,4)-0.01);
+                              //if(DivIndexSelParaPh(lL2)>=1)
+                              //       DivEstIndexPropFlag(k)=1;
+                              if(DmIndexSelParaData_Ini(lL1,5)> MINPOSITIVE)
+                                   DvIndexSelParaSigma2(lL2)=DmIndexSelParaData_Ini(lL1,5)* DmIndexSelParaData_Ini(lL1,5);//log( DmIndexSelParaData_Ini(lL1,5)* DmIndexSelParaData_Ini(lL1,5)+1.0);
+                              else
+                                   DvIndexSelParaSigma2(lL2)=SIGMA2FILL;
+                              DvIndexSelParaSigma(lL2)=sqrt(DvIndexSelParaSigma2(lL2));
+                              DvIndexSelParaLambda(lL2)=  DmIndexSelParaData_Ini(lL1,6); 
+                              DivIndexSelParaLikelihoodFlag(lL2)=int( DmIndexSelParaData_Ini(lL1,7)+0.01);
+                              
+             
+   }
+   
+   for(i=1;i<=DiIndexSelBlockNum;i++)
+   {//DivIndexSelBlockAvailFlag
+        if(!DivIndexSelBlockAvailFlag(i))
+        {//DivIndexSelFlag_Ini
+             lL1= DivIndexSelParaIndex_Ini(i);
+             //cout<<"i"<<i<<"lL1:"<<lL1<<endl;
+             switch(DivIndexSelFlag_Ini(i))
+             {
+               case 1:
+                  for(k=1;k<=DiSizeBinNum;k++)
+                         DivIndexSelParaPh(lL1+k)=-2;
+                  break;
+               case 2:
+                   DivIndexSelParaPh(lL1+1)=-2;
+                   DivIndexSelParaPh(lL1+2)=-2;
+                   break;
+               case 3:
+                   DivIndexSelParaPh(lL1+1)=-2;
+                   DivIndexSelParaPh(lL1+2)=-2;
+                   DivIndexSelParaPh(lL1+3)=-2;
+                   DivIndexSelParaPh(lL1+4)=-2;
+                   break;
+             }
+        }
+   }
+   ii=0;
+   for(i=1;i<=DiIndexNum;i++)
+   {
+        if(DivAvailIndexFlag(i))
+        {
+             ii++;
+             for(j=DiCalBeginYear;j<=DiCalEndYear;j++)
+             {
+                jj=DimIndexSelBlockFlag(j,i+1);      //block;
+                lL1= DivIndexSelParaIndex_Ini(jj);
+                switch(DivIndexSelFlag_Ini(i))
+                {
+                  case 1:
+                     for(k=1;k<=DiSizeBinNum;k++)
+                     {
+                         if(DivIndexSelParaPh(lL1+k)>0)
+					;
+                               DivEstIndexPropFlag(ii)=1;
+                     }
+                     break;
+                  case 2:
+                    for(k=1;k<=2;k++)
+                    {
+                         if(DivIndexSelParaPh(lL1+k)>0)
+					;
+                               DivEstIndexPropFlag(ii)=1;
+                    }
+                    break;
+                  case 3:
+                   for(k=1;k<=4;k++)
+                    {
+                         if(DivIndexSelParaPh(lL1+k)>0)
+					;
+                               DivEstIndexPropFlag(ii)=1;
+                    }
+                   break;
+                }
+                if(DivEstIndexPropFlag(ii)==1)
+                   break;
+             }
+        }
+   }
+   #if Debug_Status
+      ICHECKPIR( DvIndexSelPara_Ini);
+      ICHECKPIR( DvIndexSelParaBLo);
+      ICHECKPIR( DvIndexSelParaBHi);
+      //
+      ICHECKPIR( DvIndexSelParaSigma);
+      ICHECKPIR( DvIndexSelParaLambda);
+      ICHECKPIR( DivEstIndexPropFlag);
+   #endif
+   lL2=7;
+   if( DiNYear1ChoiceFlag==0)
+   {
+       lL1=DiSizeBinNum;
+       DiNYear1EstParaNum =DiSizeBinNum;
+    }
+   if( DiNYear1ChoiceFlag==1)
+   {
+       lL1=1;
+       DiNYear1EstParaNum =1;
+    }
+   if( DiNYear1ChoiceFlag==2)
+   {
+       lL1=1;
+       DiNYear1EstParaNum =1;
+    }
+   if( DiNYear1ChoiceFlag==7)
+   {
+       lL1=9;
+       DiNYear1EstParaNum =9;
+    }
+   if( DiNYear1ChoiceFlag==3)
+   {
+       lL1=3;
+       DiNYear1EstParaNum =3;
+    }
+   if( DiNYear1ChoiceFlag==4)
+   {
+       lL1=3;
+       DiNYear1EstParaNum =3;
+    }
+   if( DiNYear1ChoiceFlag==5)
+   {
+       lL1=3;
+       DiNYear1EstParaNum =3;
+    }
+   if( DiNYear1ChoiceFlag==6)
+   {
+       lL1=3;
+       DiNYear1EstParaNum =3;
+    }
+   //else
+   //{
+   //    DiNYear1EstParaNum =3;
+   //    lL1=3;
+   //}
+  //cout<<"DiNYear1ChoiceFlag"<<DiNYear1ChoiceFlag<<endl;
+  //cout<<"DiNYear1EstParaNum:"<<lL1<<DiNYear1EstParaNum<<endl;
+  //exit(-2);
+  DmNYear1NPia_Ini.allocate(1,lL1,1,lL2,"DmNYear1NPia_Ini");
+ICHECKPIR(DmNYear1NPia_Ini);
+  DvNYear1ParaInital.allocate(1,DiNYear1EstParaNum);
+  DvNYear1ParaLo.allocate(1,DiNYear1EstParaNum);
+  DvNYear1ParaHi.allocate(1,DiNYear1EstParaNum);
+  DivNYear1ParaPh.allocate(1,DiNYear1EstParaNum);
+  DvNYear1ParaSigma2.allocate(1,DiNYear1EstParaNum);
+  DvNYear1ParaSigma.allocate(1,DiNYear1EstParaNum);
+  DvNYear1ParaLambda.allocate(1,DiNYear1EstParaNum);
+  DivNYear1ParaLikelihoodFlag.allocate(1,DiNYear1EstParaNum);
+  
+    for( i=1;i<=DiNYear1EstParaNum;i++)
+    {//DimFleetFirstYear(1,DiFleetNum,1,DiSeasonNum) 
+               DvNYear1ParaInital(i) =  DmNYear1NPia_Ini(i,1);
+               DvNYear1ParaLo(i)     =  DmNYear1NPia_Ini(i,2);
+               DvNYear1ParaHi(i)     =  DmNYear1NPia_Ini(i,3);
+               if(DiNYear1ChoiceFlag==1||DiNYear1ChoiceFlag==2)
+               {
+                  if(i==1)
+                     DivNYear1ParaPh(i)    =  DmNYear1NPia_Ini(i,4)> MINPOSITIVE ? int( DmNYear1NPia_Ini(i,4)+0.001):int( DmNYear1NPia_Ini(i,4)-0.01);
+                  else
+                     DivNYear1ParaPh(i)    =  -2;
+               }
+               else
+               {
+                    
+                    DivNYear1ParaPh(i)    =  DmNYear1NPia_Ini(i,4)> MINPOSITIVE ? int( DmNYear1NPia_Ini(i,4)+0.001):int( DmNYear1NPia_Ini(i,4)-0.01);
+               }
+               
+               if( DmNYear1NPia_Ini(i,5)>MINPOSITIVE)
+                  DvNYear1ParaSigma2(i)=DmNYear1NPia_Ini(i,5)* DmNYear1NPia_Ini(i,5);//log( DmNYear1NPia_Ini(i,5)* DmNYear1NPia_Ini(i,5)+1.0);
+               else
+                  DvNYear1ParaSigma2(i) =SIGMA2FILL;
+               
+               DvNYear1ParaSigma(i)    =sqrt(DvNYear1ParaSigma2(i));
+               DvNYear1ParaLambda(i)   =DmNYear1NPia_Ini(i,6);
+               DivNYear1ParaLikelihoodFlag(i)=int( DmNYear1NPia_Ini(i,7)+0.01);
+    }
+   ////////////////////////////////////////////////////////
+  #if Debug_Status
+   ICHECKPIR(DvNYear1ParaInital);
+   ICHECKPIR(DvNYear1ParaLo);
+   ICHECKPIR(DvNYear1ParaHi);
+   ICHECKPIR(DivNYear1ParaPh);
+   ICHECKPIR(DvNYear1ParaSigma);
+   ICHECKPIR(DvNYear1ParaLambda);
+   ICHECKPIR(DivNYear1ParaLikelihoodFlag);
+  #endif
+  ////////////////////////////////////////////////////
+lL1=DiFleetNum*Flagtimestep;                    // initial value/lo/up/phase/sd/lambda/likelihood flag
+  DmFYear1_Ini.allocate(1,lL1,1,7,"DmFYear1_Ini");
+ICHECKPIR(DmFYear1_Ini);
+  DvLogFYear1Sigma2.allocate(1,lL1);
+  DvLogFYear1Sigma.allocate(1,lL1);
+  DvLogFYear1Ini.allocate(1,lL1);
+  DvLogFYear1Lambda.allocate(1,lL1);
+  DivLogFYear1LikelihoodFlag.allocate(1,lL1);
+  DvLogFYear1Lo.allocate(1,lL1);
+  DvLogFYear1Hi.allocate(1,lL1);
+  DivLogFYear1Ph.allocate(1,lL1);
+   for(i=1;i<=DiFleetNum;i++)
+   {//  DimFleetFirstYear(1,DiFleetNum,1,DiSeasonNum) 
+     for(k=1;k<=Flagtimestep;k++)
+     {
+        iL1=(i-1)*Flagtimestep+k;
+        if(DmFYear1_Ini(iL1,1)>0.0)
+             DvLogFYear1Ini(iL1)=log(DmFYear1_Ini(iL1,1));//???????????
+        else
+             DvLogFYear1Ini(iL1)=log(0.27/4.0);//??????????
+       if(DmFYear1_Ini(iL1,2)>0.0)
+               DvLogFYear1Lo(iL1)=log(DmFYear1_Ini(iL1,2));//?????????????
+       else
+               DvLogFYear1Lo(iL1)=-25.0;
+       if(DmFYear1_Ini(iL1,3)>0.0)
+             DvLogFYear1Hi(iL1)=log(DmFYear1_Ini(iL1,3));//????????????
+       else
+             DvLogFYear1Hi(iL1)=log(DnFmax);
+        //sgwj1 debug  CV -log scale
+        if(DimFleetFirstYear(i,k)==0)
+        {
+             DivLogFYear1Ph(iL1)=-2;
+        }
+        else
+            DivLogFYear1Ph(iL1)=DmFYear1_Ini(iL1,4)>0.0 ? int(DmFYear1_Ini(iL1,4)+0.01): int(DmFYear1_Ini(iL1,4)-0.01);
+        if(DmFYear1_Ini(iL1,5)>0.0)
+            DvLogFYear1Sigma2(iL1)= DmFYear1_Ini(iL1,5)*DmFYear1_Ini(iL1,5);//log(DmFYear1_Ini(iL1,5)*DmFYear1_Ini(iL1,5)+1.0);
+        else
+            DvLogFYear1Sigma2(iL1)=SIGMA2FILL;
+        DvLogFYear1Sigma(iL1)=sqrt(DvLogFYear1Sigma2(iL1));
+        DvLogFYear1Lambda(iL1)=DmFYear1_Ini(iL1,6);
+        DivLogFYear1LikelihoodFlag(iL1)=int(DmFYear1_Ini(iL1,7)+0.01);
+     }
+   }
+  #if Debug_Status
+   ICHECKPIR(DvLogFYear1Ini);
+   ICHECKPIR(DvLogFYear1Lo);
+   ICHECKPIR(DvLogFYear1Hi);
+   ICHECKPIR(DivLogFYear1Ph);
+   ICHECKPIR(DvLogFYear1Sigma);
+   ICHECKPIR(DvLogFYear1Lambda);
+   ICHECKPIR(DivLogFYear1LikelihoodFlag);
+  #endif
+lL1=DiFleetNum*Flagtimestep;  
+  DmFLogDevs_Ini.allocate(1,lL1,1,7,"DmFLogDevs_Ini");
+ICHECKPIR(DmFLogDevs_Ini);
+  DvFLogDevsSigma2.allocate(1,lL1);
+  DvFLogDevsSigma.allocate(1,lL1);
+  DvFLogDevsLambda.allocate(1,lL1);
+  DivFLogDevsLikelihoodFlag.allocate(1,lL1);
+   for(i=1;i<=lL1;i++)
+   {  
+           if( DmFLogDevs_Ini(i,5)>MINPOSITIVE)
+                             DvFLogDevsSigma2(i)=DmFLogDevs_Ini(i,5)* DmFLogDevs_Ini(i,5);//log( DmFLogDevs_Ini(i,5)* DmFLogDevs_Ini(i,5)+1.0);
+           else
+                             DvFLogDevsSigma2(i)=SIGMA2FILL; 
+           DvFLogDevsSigma(i)=sqrt(DvFLogDevsSigma2(i));
+           DvFLogDevsLambda(i)=DmFLogDevs_Ini(i,6);
+           DivFLogDevsLikelihoodFlag(i)=int(DmFLogDevs_Ini(i,7)+0.1);    
+    }
+  #if Debug_Status
+   
+   ICHECKPIR(DvFLogDevsSigma);
+   ICHECKPIR(DvFLogDevsLambda);
+   ICHECKPIR(DivFLogDevsLikelihoodFlag);
+  
+  #endif             
+lL1=DiFleetNum*(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep;
+  DvFLogDevsValue.allocate(1,lL1);
+  DvFLogDevsLo.allocate(1,lL1);
+  DvFLogDevsHi.allocate(1,lL1);
+  DivFLogDevsPh.allocate(1,lL1);
+   for(i=1;i<=DiFleetNum;i++)
+   {  
+      for(j=DiCalBeginYear;j<=DiCalEndYear;j++)
+      {
+          for(k=1;k<=Flagtimestep;k++)
+          {
+               iL1=(i-1)*(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep + (j-DiCalBeginYear)*Flagtimestep +k;
+               iL2=(i-1)*Flagtimestep +k;
+               lL2=(j-DiCalBeginYear)*Flagtimestep+k;
+               if(DimFleetFZeroIndex(i,lL2)!=0)
+               {
+                     DvFLogDevsValue(iL1)=0.0;      //DmFLogDevs_Ini(i,1);
+                     DvFLogDevsLo(iL1)=log(MINPOSITIVE);        //DmFLogDevs_Ini(i,2);
+                     DvFLogDevsHi(iL1)=log(DnFmax/MINPOSITIVE);//DmFLogDevs_Ini(i,3);
+                    // DivFLogDevsPh(iL1)=DmFLogDevs_Ini(iL2,4)>MINPOSITIVE ? int(DmFLogDevs_Ini(iL2,4)+0.01) : int(DmFLogDevs_Ini(iL2,4)-0.01) ;
+                     DivFLogDevsPh(iL1)=1;
+               }
+               else
+               {
+                    DvFLogDevsValue(iL1)=log(MINPOSITIVE);
+                    DvFLogDevsLo(iL1)=log(MINPOSITIVE);
+                    DvFLogDevsHi(iL1)=log(DnFmax/MINPOSITIVE);
+                    DivFLogDevsPh(iL1)=-2;
+               }
+          }
+       }   
+    }
+   
+   lL1=DiFleetNum*(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep;
+   for(i=1;i<=DiFleetNum;i++)
+   {
+             for(k=1;k<=Flagtimestep;k++)
+             {
+                j= DimFleetFirstYear(i,k);//j==0
+                if(j==0)
+                 continue;
+                 //  k= DivFleetFirstSeason(i);
+                iL1=(i-1)*(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep + (j-DiCalBeginYear)*Flagtimestep +k;
+                if( iL1>=1 && iL1<=lL1)
+                {
+                    DvFLogDevsValue(iL1)=0.0;
+                    DvFLogDevsLo(iL1)=log(MINPOSITIVE);
+                    DvFLogDevsHi(iL1)=log(DnFmax/MINPOSITIVE);
+                    DivFLogDevsPh(iL1)=-2;
+                 }  
+             }
+   }     
+  
+  #if Debug_Status
+      ICHECKPIR(DvFLogDevsValue);
+      ICHECKPIR(DvFLogDevsLo);
+      ICHECKPIR(DvFLogDevsHi);
+      ICHECKPIR(DivFLogDevsPh);
+  #endif
+    lL1= 5  * DiGrowthMatrixBlockNum ;
+    lL2=7;
+    #if Debug_Status
+    #endif
+  DmVBGFParas_Ini.allocate(1,lL1,1,7,"DmVBGFParas_Ini");
+ ICHECKPIR( DmVBGFParas_Ini);                           //  Linf    V    LSD     VSD    Rho(Linf,V)
+ lL1=DiGrowthMatrixBlockNum;
+  DvVBGFLinfValue.allocate(1,lL1);
+  DvVBGFLinfLo.allocate(1,lL1);
+  DvVBGFLinfHi.allocate(1,lL1);
+  DivVBGFLinfPh.allocate(1,lL1);
+  DvVBGFLinfSigma2.allocate(1,lL1);
+  DvVBGFLinfSigma.allocate(1,lL1);
+  DvVBGFLinfLambda.allocate(1,lL1);
+  DivVBGFLinfLikelihoodFlag.allocate(1,lL1);
+  DvVBGFVValue.allocate(1,lL1);
+  DvVBGFVLo.allocate(1,lL1);
+  DvVBGFVHi.allocate(1,lL1);
+  DivVBGFVPh.allocate(1,lL1);
+  DvVBGFVSigma2.allocate(1,lL1);
+  DvVBGFVSigma.allocate(1,lL1);
+  DvVBGFVLambda.allocate(1,lL1);
+  DivVBGFVLikelihoodFlag.allocate(1,lL1);
+  DvVBGFLSDValue.allocate(1,lL1);
+  DvVBGFLSDLo.allocate(1,lL1);
+  DvVBGFLSDHi.allocate(1,lL1);
+  DivVBGFLSDPh.allocate(1,lL1);
+  DvVBGFLSDSigma2.allocate(1,lL1);
+  DvVBGFLSDSigma.allocate(1,lL1);
+  DvVBGFLSDLambda.allocate(1,lL1);
+  DivVBGFLSDLikelihoodFlag.allocate(1,lL1);
+  DvVBGFVSDValue.allocate(1,lL1);
+  DvVBGFVSDLo.allocate(1,lL1);
+  DvVBGFVSDHi.allocate(1,lL1);
+  DivVBGFVSDPh.allocate(1,lL1);
+  DvVBGFVSDSigma2.allocate(1,lL1);
+  DvVBGFVSDSigma.allocate(1,lL1);
+  DvVBGFVSDLambda.allocate(1,lL1);
+  DivVBGFVSDLikelihoodFlag.allocate(1,lL1);
+  DvVBGFLVRhoValue.allocate(1,lL1);
+  DvVBGFLVRhoLo.allocate(1,lL1);
+  DvVBGFLVRhoHi.allocate(1,lL1);
+  DivVBGFLVRhoPh.allocate(1,lL1);
+  DvVBGFLVRhoSigma2.allocate(1,lL1);
+  DvVBGFLVRhoSigma.allocate(1,lL1);
+  DvVBGFLVRhoLambda.allocate(1,lL1);
+  DivVBGFLVRhoLikelihoodFlag.allocate(1,lL1);
+   // if(DiGrowthMatrixFlag)
+   // {
+      for(i=1;i<=DiGrowthMatrixBlockNum ;i++)
+      {//Linf
+          DvVBGFLinfValue(i)=DmVBGFParas_Ini((i-1)*5+1,1);
+          DvVBGFLinfLo(i)=DmVBGFParas_Ini((i-1)*5+1,2);
+          DvVBGFLinfHi(i)=DmVBGFParas_Ini((i-1)*5+1,3);
+          DivVBGFLinfPh(i)=DmVBGFParas_Ini((i-1)*5+1,4)>MINPOSITIVE ?int(DmVBGFParas_Ini((i-1)*5+1,4)+0.01) :int(DmVBGFParas_Ini((i-1)*5+1,4)-0.01) ;
+          if(DmVBGFParas_Ini((i-1)*5+3,5)>MINPOSITIVE)
+                    DvVBGFLinfSigma2(i)=DmVBGFParas_Ini((i-1)*5+1,5)*DmVBGFParas_Ini((i-1)*5+1,5);//log(DmVBGFParas_Ini((i-1)*5+1,5)*DmVBGFParas_Ini((i-1)*5+1,5)+1.0);
+          else
+                    DvVBGFLinfSigma2(i)=SIGMA2FILL;
+          DvVBGFLinfSigma(i)=sqrt(DvVBGFLinfSigma2(i));
+          DvVBGFLinfLambda(i)=DmVBGFParas_Ini((i-1)*5+1,6);
+          DivVBGFLinfLikelihoodFlag(i)=int(DmVBGFParas_Ini((i-1)*5+1,7)+0.1);
+          //V
+          DvVBGFVValue(i)=DmVBGFParas_Ini((i-1)*5+2,1);
+          DvVBGFVLo(i)=DmVBGFParas_Ini((i-1)*5+2,2);
+          DvVBGFVHi(i)=DmVBGFParas_Ini((i-1)*5+2,3);
+          DivVBGFVPh(i)=DmVBGFParas_Ini((i-1)*5+2,4)>MINPOSITIVE ?int(DmVBGFParas_Ini((i-1)*5+2,4)+0.01) :int(DmVBGFParas_Ini((i-1)*5+2,4)-0.01) ;
+          if(DmVBGFParas_Ini((i-1)*5+2,5)>MINPOSITIVE)
+                    DvVBGFVSigma2(i)=DmVBGFParas_Ini((i-1)*5+2,5)*DmVBGFParas_Ini((i-1)*5+2,5);//log(DmVBGFParas_Ini((i-1)*5+2,5)*DmVBGFParas_Ini((i-1)*5+2,5)+1.0);
+          else
+                    DvVBGFVSigma2(i)=SIGMA2FILL;
+          DvVBGFVSigma(i)=sqrt(DvVBGFVSigma2(i));
+          DvVBGFVLambda(i)=DmVBGFParas_Ini((i-1)*5+2,6);
+          DivVBGFVLikelihoodFlag(i)=int(DmVBGFParas_Ini((i-1)*5+2,7)+0.1);
+          //LSD
+          DvVBGFLSDValue(i)=DmVBGFParas_Ini((i-1)*5+3,1);
+          DvVBGFLSDLo(i)=DmVBGFParas_Ini((i-1)*5+3,2);
+          DvVBGFLSDHi(i)=DmVBGFParas_Ini((i-1)*5+3,3);
+          DivVBGFLSDPh(i)=DmVBGFParas_Ini((i-1)*5+3,4)>MINPOSITIVE ?int(DmVBGFParas_Ini((i-1)*5+3,4)+0.01) :int(DmVBGFParas_Ini((i-1)*5+3,4)-0.01) ;
+          if(DmVBGFParas_Ini((i-1)*5+3,5)>MINPOSITIVE)
+                    DvVBGFLSDSigma2(i)=DmVBGFParas_Ini((i-1)*5+3,5)*DmVBGFParas_Ini((i-1)*5+3,5);//log(DmVBGFParas_Ini((i-1)*5+3,5)*DmVBGFParas_Ini((i-1)*5+3,5)+1.0);
+          else
+                    DvVBGFLSDSigma2(i)=SIGMA2FILL;
+          DvVBGFLSDSigma(i)=sqrt(DvVBGFLSDSigma2(i));
+          DvVBGFLSDLambda(i)=DmVBGFParas_Ini((i-1)*5+3,6);
+          DivVBGFLSDLikelihoodFlag(i)=int(DmVBGFParas_Ini((i-1)*5+3,7)+0.1);
+          //VSD
+          DvVBGFVSDValue(i)=DmVBGFParas_Ini((i-1)*5+4,1);
+          DvVBGFVSDLo(i)=DmVBGFParas_Ini((i-1)*5+4,2);
+          DvVBGFVSDHi(i)=DmVBGFParas_Ini((i-1)*5+4,3);
+          DivVBGFVSDPh(i)=DmVBGFParas_Ini((i-1)*5+4,4)>MINPOSITIVE ?int(DmVBGFParas_Ini((i-1)*5+4,4)+0.01) :int(DmVBGFParas_Ini((i-1)*5+4,4)-0.01) ;
+          if(DmVBGFParas_Ini((i-1)*5+4,5)>MINPOSITIVE)
+                    DvVBGFVSDSigma2(i)=DmVBGFParas_Ini((i-1)*5+4,5)*DmVBGFParas_Ini((i-1)*5+4,5);//log(DmVBGFParas_Ini((i-1)*5+4,5)*DmVBGFParas_Ini((i-1)*5+4,5)+1.0);
+          else
+                    DvVBGFVSDSigma2(i)=SIGMA2FILL;
+          DvVBGFVSDSigma(i)=sqrt(DvVBGFVSDSigma2(i));
+          DvVBGFVSDLambda(i)=DmVBGFParas_Ini((i-1)*5+4,6);
+          DivVBGFVSDLikelihoodFlag(i)=int(DmVBGFParas_Ini((i-1)*5+4,7)+0.1);
+          //LVRho
+          DvVBGFLVRhoValue(i)=DmVBGFParas_Ini((i-1)*5+5,1);
+          DvVBGFLVRhoLo(i)=DmVBGFParas_Ini((i-1)*5+5,2);
+          DvVBGFLVRhoHi(i)=DmVBGFParas_Ini((i-1)*5+5,3);
+          DivVBGFLVRhoPh(i)=DmVBGFParas_Ini((i-1)*5+5,4)>MINPOSITIVE ?int(DmVBGFParas_Ini((i-1)*5+5,4)+0.01) :int(DmVBGFParas_Ini((i-1)*5+5,4)-0.01) ;
+          if(DmVBGFParas_Ini((i-1)*5+5,5)>MINPOSITIVE)
+                    DvVBGFLVRhoSigma2(i)=DmVBGFParas_Ini((i-1)*5+5,5)*DmVBGFParas_Ini((i-1)*5+5,5);//log(DmVBGFParas_Ini((i-1)*5+5,5)*DmVBGFParas_Ini((i-1)*5+5,5)+1.0);
+          else
+                    DvVBGFLVRhoSigma2(i)=SIGMA2FILL;
+          DvVBGFLVRhoSigma(i)=sqrt(DvVBGFLVRhoSigma2(i));
+          DvVBGFLVRhoLambda(i)=DmVBGFParas_Ini((i-1)*5+5,6);
+          DivVBGFLVRhoLikelihoodFlag(i)=int(DmVBGFParas_Ini((i-1)*5+5,7)+0.1);
+          
+      }
+     
+   // }
+    #if Debug_Status
+      ICHECKPIR(DvVBGFLVRhoValue);
+      ICHECKPIR(DvVBGFLVRhoLo);
+      ICHECKPIR(DvVBGFLVRhoHi);
+      ICHECKPIR(DivVBGFLVRhoPh);
+      ICHECKPIR(DvVBGFLVRhoSigma);
+      ICHECKPIR(DvVBGFLVRhoLambda);
+      ICHECKPIR(DivVBGFLVRhoLikelihoodFlag);
+     
+    #endif 
+    
+     //cout<<"PIRROR Data Input Over"<<endl;
+  DvRPVParas_Ini.allocate(1,7,"DvRPVParas_Ini");
+ ICHECKPIR(DvRPVParas_Ini);
+  DvLfiftyParas_Ini.allocate(1,7,"DvLfiftyParas_Ini");
+ ICHECKPIR(DvLfiftyParas_Ini);
+ L1=DiCalEndYear-DiCalBeginYear+1;
+  DvLfiftyLo.allocate(1,L1);
+  DvLfiftyHi.allocate(1,L1);
+  DivLfiftyPh.allocate(1,L1);
+  DvRsexParas_Ini.allocate(1,7,"DvRsexParas_Ini");
+ ICHECKPIR(DvRsexParas_Ini);
+   for(i=1;i<=L1;i++)
+   {   
+      DvLfiftyLo(i)=DvLfiftyParas_Ini(2);
+      DvLfiftyHi(i)=DvLfiftyParas_Ini(3);
+      if(DvLfiftyParas_Ini(4)<0)
+           DivLfiftyPh(i)=int(DvLfiftyParas_Ini(4)-0.01);
+      else
+           DivLfiftyPh(i)=int(DvLfiftyParas_Ini(4)+0.01);
+   }
+      if(DvLfiftyParas_Ini(5)<0)
+           DnLfiftySigma=SIGMA2FILL;
+      else
+           DnLfiftySigma=DvLfiftyParas_Ini(5);
+    DnLfiftySigma2=DnLfiftySigma*DnLfiftySigma;
+    DnLfiftyLambda=DvLfiftyParas_Ini(6);
+    DiLfiftyLikelihoodFlag=int(DvLfiftyParas_Ini(7)+0.01);
+   DnRsexLo=DvRsexParas_Ini(2);
+   DnRsexHi=DvRsexParas_Ini(3);
+   
+   if(DvRsexParas_Ini(4)<0)
+       DiRsexPh=int(DvRsexParas_Ini(4)-0.01);
+   else
+       DiRsexPh=int(DvRsexParas_Ini(4)+0.01);
+   if(DvRsexParas_Ini(5)<0)
+       DnRsexSigma=SIGMA2FILL;
+   else
+       DnRsexSigma=DvRsexParas_Ini(5);
+   DnRsexSigma2=DnRsexSigma*DnRsexSigma;
+   DnRsexLambda=DvRsexParas_Ini(6);
+   DiRsexLikelihoodFlag=int(DvRsexParas_Ini(7)+0.01);
+  iTestValuePIR.allocate("iTestValuePIR");
+ ICHECKPIR(iTestValuePIR)
+    if( iTestValuePIR !=-22122)
+    {
+        cout<< "Error in Prior Input Data "<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122 in Prior Data!");
+        CloseRecord();
+        exit(-8);
+    }
+  DvRPVLo.allocate(1,DiSizeBinNum);
+  DvRPVHi.allocate(1,DiSizeBinNum);
+  DivRPVPh.allocate(1,DiSizeBinNum);
+   for(i=1;i<=DiSizeBinNum;i++)
+   {
+       DvRPVLo(i)=DvRPVParas_Ini(2);
+       DvRPVHi(i)=DvRPVParas_Ini(3);
+       if(DvRPVParas_Ini(4)<0)
+           DivRPVPh(i)=int(DvRPVParas_Ini(4)-0.01);
+       else
+           DivRPVPh(i)=int(DvRPVParas_Ini(4)+0.01);
+   }
+   DivRPVPh(1)=-2;
+   for(i=DiRecruitPrjVectNP+1;i<=DiSizeBinNum;i++)
+           DivRPVPh(i)=-2;
+   if(DvRPVParas_Ini(5)<0)
+      DnRPVSigma=SIGMA2FILL;
+   else
+      DnRPVSigma=DvRPVParas_Ini(5);
+    DnRPVSigma2=DnRPVSigma*DnRPVSigma;
+    DnRPVLambda=DvRPVParas_Ini(6);
+    DiRPVLikelihoodFlag=int(DvRPVParas_Ini(7)+0.01);
+   #if Debug_Status
+    
+      ICHECKPIR(DvRPVLo);
+      ICHECKPIR(DvRPVHi);
+      ICHECKPIR(DivRPVPh);
+      ICHECKPIR(DnRPVSigma);
+      ICHECKPIR(DnRPVLambda);
+      ICHECKPIR(DiRPVLikelihoodFlag);
+      cout<<"Prior Data Input Complete"<<endl;
+      // exit(-99);
+   #endif
+   //MnRPVLikely
+   ClosePIR();
+   RECORD("Prior Data Input Complete");
+    if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/Projection_Year.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/Projection_Season.DAT");}
+  DiPJDDoProjectFlag.allocate("DiPJDDoProjectFlag");
+ICHECKPJD(DiPJDDoProjectFlag);
+  DiPJDFinalYear.allocate("DiPJDFinalYear");
+ICHECKPJD( DiPJDFinalYear)     
+  DiPJDRecruitFlag.allocate("DiPJDRecruitFlag");
+ICHECKPJD(DiPJDRecruitFlag);
+   if( DiPJDFinalYear>200)
+        DiPJDFinalYear= DiPJDFinalYear-DiBeginYear+1-DiCalEndYear;
+   if(DiPJDFinalYear<0)
+   {
+      DiPJDFinalYear=0;
+      DiPJDDoProjectFlag=0;
+      WARNING<<"Project Year less than last year"<<endl;
+      cout<<"Project Year less than last year"<<endl;
+   }
+  DvPJDRecruitData.allocate(1,DiPJDFinalYear,"DvPJDRecruitData");
+if(DiPJDFinalYear>0) ICHECKPJD(DvPJDRecruitData);
+  DiPJDSelectivityFlag.allocate("DiPJDSelectivityFlag");
+ICHECKPJD(DiPJDSelectivityFlag);
+  DivPJDRandomNumber.allocate(1,DiPJDFinalYear);
+     //lHour;  lMinute;
+     if(DiPJDRecruitFlag==3)
+     {
+         int iRandNum=int(tBeginTime);
+         random_number_generator r(iRandNum);
+         for(i=1;i<=DiPJDFinalYear;i++)
+         {//DiCalBeginYear,DiCalEndYear
+            
+            lL2=int(randu(r)*(DiCalEndYear-DiCalBeginYear+1)+DiCalBeginYear);
+            if(lL2>=DiCalBeginYear && lL2<=DiCalEndYear)
+               DivPJDRandomNumber(i)=lL2;
+            else
+            {
+                i--;
+                continue;
+            }
+          }
+       }
+      lL2=DiSizeBinNum; 
+      lL1=Flagtimestep;
+      //cout<<iRandNum<<endl;
+      //cout<<rand()<<endl;
+      //cout<<DivPJDRandomNumber<<endl;
+      //exit(-99);
+  DmPJDSelectivityIni.allocate(1,lL1,1,lL2,"DmPJDSelectivityIni");
+if(DiPJDSelectivityFlag) ICHECKPJD(DmPJDSelectivityIni);
+  DiPJDDataFlag.allocate("DiPJDDataFlag");
+ICHECKPJD(DiPJDDataFlag);
+  DmPJDContrlData.allocate(1,DiPJDFinalYear,1,Flagtimestep,"DmPJDContrlData");
+ICHECKPJD(DmPJDContrlData);
+  DivPJDBlockGrowthMatrix.allocate(1,Flagtimestep,"DivPJDBlockGrowthMatrix");
+ICHECKPJD(DivPJDBlockGrowthMatrix);
+  DiTestValuePJD.allocate("DiTestValuePJD");
+ICHECKPJD(DiTestValuePJD);
+    if( DiTestValuePJD !=-22122)
+    {
+        cout<< "Error in Projection Input  Data "<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-8);
+    }
+    ClosePJD();
+    cout<<"Projection Data Input Complete"<<endl;
+   if (Flagtimestep==1)
+    { ad_comm::change_datafile_name("./InputFiles/Year/Parameters_Ini_Year.DAT");}
+    else 
+    {ad_comm::change_datafile_name("./InputFiles/Season/Parameters_Ini_Season.DAT");}
+  DbnvFleetSelParams.allocate(1,DiFleetSelParaNumIni,"DbnvFleetSelParams");
+ICHECKINI(DbnvFleetSelParams);
+lL1=DiFleetNum*Flagtimestep;
+  DbnvLogFYear1Season1.allocate(1,lL1,"DbnvLogFYear1Season1");
+ICHECKINI(DbnvLogFYear1Season1);
+lL1=DiFleetNum*DiYearNum*Flagtimestep; //!!lL1=(DiCalEndYear-DiCalBeginYear+1)*DiSeasonNum-1;
+  DbnvLogFDevs.allocate(1,lL1,"DbnvLogFDevs");
+ICHECKINI(DbnvLogFDevs);
+  DbnvCPUEQBiomassE1.allocate(1,DiCPUEBlockNum,"DbnvCPUEQBiomassE1");
+ICHECKINI(DbnvCPUEQBiomassE1);
+  DbnvIndexSelParams.allocate(1,DiIndexSelParaNumIni,"DbnvIndexSelParams");
+ICHECKINI(DbnvIndexSelParams);
+  DbnvIndexQBiomassE1.allocate(1,DiIndexQBlockNum,"DbnvIndexQBiomassE1");
+ICHECKINI(DbnvIndexQBiomassE1);
+  DbvNYear1Para.allocate(1,DiNYear1EstParaNum,"DbvNYear1Para");
+ICHECKINI(DbvNYear1Para);
+lL1=2;
+  DbnvLogRSPara.allocate(1,lL1,"DbnvLogRSPara");
+ICHECKINI(DbnvLogRSPara);
+  DbvEnvCoef.allocate(1,DiEnvNum,"DbvEnvCoef");
+ICHECKINI(DbvEnvCoef);
+  DbdvLogRecruitDevs.allocate(1,DiYearNum,"DbdvLogRecruitDevs");
+ICHECKINI(DbdvLogRecruitDevs);
+  DbnRecruitmentRh.allocate("DbnRecruitmentRh");
+ICHECKINI(DbnRecruitmentRh);
+iL1=1;
+  DbnvRecruitLogDevsSD.allocate(1,iL1,"DbnvRecruitLogDevsSD");
+ICHECKINI(DbnvRecruitLogDevsSD);
+  DbnvLorenzenA.allocate(1,Flagtimestep,"DbnvLorenzenA");
+ICHECKINI(DbnvLorenzenA);
+  DbnvLorenzenB.allocate(1,Flagtimestep,"DbnvLorenzenB");
+ICHECKINI(DbnvLorenzenB);
+lL1=DiGrowthMatrixBlockNum;
+  DbnvLinf.allocate(1,lL1,"DbnvLinf");
+ICHECKINI(DbnvLinf);
+  DbnvV.allocate(1,lL1,"DbnvV");
+ICHECKINI(DbnvV);
+  DbnvLSD.allocate(1,lL1,"DbnvLSD");
+ICHECKINI(DbnvLSD);
+  DbnvVSD.allocate(1,lL1,"DbnvVSD");
+ICHECKINI(DbnvVSD);
+  DbnvLVRho.allocate(1,lL1,"DbnvLVRho");
+ICHECKINI(DbnvLVRho);
+  DbnvRecruitPrjVect.allocate(1,DiSizeBinNum,"DbnvRecruitPrjVect");
+ICHECKINI(DbnvRecruitPrjVect);
+  DbnvLfifty.allocate(1,DiYearNum,"DbnvLfifty");
+ICHECKINI(DbnvLfifty);
+  DbnRsex.allocate("DbnRsex");
+  DiTestValueINI.allocate("DiTestValueINI");
+ICHECKINI(DiTestValueINI);
+  DvEnvfitZscore.allocate(DiCalBeginYear,DiCalEndYear);
+  
+  temp1=0;
+  temp2=0;
+  for (k=DiCalBeginYear;k<=DiCalEndYear;k++)
+  {
+     Sum_temp=0;
+     for(i=1;i<=DiEnvNum;i++)
+     {
+        Sum_temp=DmEnv(k,i)*DbvEnvCoef(i)+Sum_temp;
+     }
+     DvEnvfitZscore(k)=Sum_temp;
+  }
+  
+  //cout<<DvEnvfitZscore<<endl;
+  temp1=mean(DvEnvfitZscore);
+  temp2=std_dev(DvEnvfitZscore);
+  
+  for (k=DiCalBeginYear;k<=DiCalEndYear;k++)
+  {
+  DvEnvfitZscore(k)=(DvEnvfitZscore(k)-temp1)/temp2;
+  //DvEnvfitZscore(k)=DvEnvfitZscore(k)-temp1;
+  }
+  StdevEnvZ=std_dev(DvEnvfitZscore);
+  //cout<<DvEnvfitZscore<<endl;
+  //cout<<StdevEnvZ<<endl;
+  //exit(99999);
+    if(DiTestValueINI!=-22122)
+    {
+        cout<< "Error in Parameters Initialize  Data "<<endl;
+        RECORD("Data Input Error, the TESTVALUE not Equal -22122");
+        CloseRecord();
+        exit(-88);
+    }
+    CloseINI();
+  DvFleetSelLikely.allocate(1,DiFleetSelParaNumIni);
+iTemp=DiFleetNum*DiSeasonNum;
+  DvFYear1Likely.allocate(1,iTemp);
+  DvFLogDevsLikely.allocate(1,DiFleetNum);
+  DvCPUEQE1Likely.allocate(1,DiCPUEBlockNum);
+  DvCatchTotalLikely.allocate(1,DiFleetNum);
+  DvCatchPropLikely.allocate(1,DiFleetNum);
+  DvCPUELikely.allocate(1,DiAvailCPUENum);
+  DvIndexSelLikely.allocate(1,DiIndexSelParaNumIni);
+  DvIndexLikely.allocate(1,DiAvailIndexNum);
+  DvIndexPropLikely.allocate(1,DiAvailIndexNum);
+  DvIndexQE1Likely.allocate(1,DiIndexQBlockNum);
+  DvNYear1Likely.allocate(1,DiNYear1EstParaNum);
+ lL1=2;
+  DvRSParaLikely.allocate(1,lL1);
+  DvLorenzenALikely.allocate(1,DiSeasonNum);
+  DvLorenzenBLikely.allocate(1,DiSeasonNum);
+  DvLinfLikely.allocate(1,DiGrowthMatrixBlockNum);
+  DvVLikely.allocate(1,DiGrowthMatrixBlockNum);
+  DvLSDLikely.allocate(1,DiGrowthMatrixBlockNum);
+  DvVSDLikely.allocate(1,DiGrowthMatrixBlockNum);
+  DvLVRhoLikely.allocate(1,DiGrowthMatrixBlockNum);
+  DvTemp.allocate(1,DiSizeBinNum);
+  Fd3GrowthMatrix.allocate(1,DiSeasonNum,1,DiSizeBinNum,1,DiSizeBinNum);
+DiPenaltyLambdaFlag=0;
+  dmFRInFleetSeason.allocate(1,DiSeasonNum,1,DiFleetNum);
+  dvFRInSeason.allocate(1,DiSeasonNum);
+  DvLfiftyLikely.allocate(1,DiYearNum);
+cout<<"DATA INPUT COMPLETED"<<endl;
+cout<<""<<endl;
+  if (global_datafile)
+  {
+    delete global_datafile;
+    global_datafile = NULL;
+  }
+}
+
+model_parameters::model_parameters(int sz,int argc,char * argv[]) : 
+ model_data(argc,argv) , function_minimizer(sz)
+{
+  initializationfunction();
+ cout<<"PARAMETER DEFINE BEGIN"<<endl;
+ RECORD("PARAMETERS SECTION!!");
+ temp=0;
+  PbnvFleetSelParams.allocate(1,DiFleetSelParaNumIni,DvFleetSelParaBLo,DvFleetSelParaBHi,DivFleetSelParaPh,"PbnvFleetSelParams");
+  NP=0;
+  for (i=1;i<=DiFleetSelParaNumIni;i++)
+    {
+     if (DivFleetSelParaPh(i)>MINPOSITIVE) 
+        NP=NP+1;
+    }
+  temp=NP+temp;
+  cout<<"Number of parameters for fishery seletivity: "<<NP<<endl;
+lL1=DiFleetNum*Flagtimestep;
+  PbnvLogFYear1Season1.allocate(1,lL1,DvLogFYear1Lo,DvLogFYear1Hi,DivLogFYear1Ph,"PbnvLogFYear1Season1");
+  NP=0;
+  for (i=1;i<=lL1;i++)
+    {
+     if (DivLogFYear1Ph(i)>MINPOSITIVE) 
+        NP=NP+1;
+    }
+         temp=NP+temp;
+lL1=DiFleetNum*(DiCalEndYear-DiCalBeginYear+1)*Flagtimestep; //!!lL1=(DiCalEndYear-DiCalBeginYear+1)*DiSeasonNum-1;
+  PbnvLogFDevs.allocate(1,lL1,DvFLogDevsLo,DvFLogDevsHi,DivFLogDevsPh,"PbnvLogFDevs");
+  NP1=0;
+  for (i=1;i<=lL1;i++)
+    {
+     if (DivFLogDevsPh(i)>MINPOSITIVE) 
+        NP1=NP1+1;
+    }
+        temp=NP1+temp;
+  cout<<"Number of parameters for fishery mortality deviations: "<<NP+NP1<<endl;
+  PbnvCPUEQBiomassE1.allocate(1,DiCPUEBlockNum,DvCPUEQBiomassE1Lo,DvCPUEQBiomassE1Hi,DivCPUEQBiomassE1Ph,"PbnvCPUEQBiomassE1");
