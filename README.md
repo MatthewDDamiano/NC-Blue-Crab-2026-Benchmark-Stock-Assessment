@@ -23,6 +23,9 @@ Additional details:
 You can change which model parameters are estimated directly in the 01_RunModel.R file, but changes to other fishery and life history 
 characteristics have to be changed manually in the 01_SetData.R file. 
 
+If you encounter any issues running the code, or have questions about the model and its outputs, 
+contact Matt Damiano at matt.damiano@deq.nc.gov
+
 
 
 
