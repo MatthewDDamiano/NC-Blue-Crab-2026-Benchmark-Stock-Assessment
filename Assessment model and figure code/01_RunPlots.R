@@ -146,7 +146,7 @@ PlotSLC() # if using the windows() function, will only show second season's comp
 # Plot abundance at size (from Cao et al.'s original code)
 windows(10,10)
 PlotAbun()
-# Modify Cao et al.'s catch composition function to work with current model
+# Modify Cao et al.'s fishery-dependent catch composition function to work with current model
 PlotCC<-function()
 {
   N_syear=Nyear
@@ -256,13 +256,13 @@ PlotR=function()
 windows(10,10)
 PlotR()
 # Plot to compare NAO index with log-scale recruitment deviations
-windows(10,10)
-par(mar=c(3,3,3,3))
-par(mfrow=c(1,2))
-plot(years,env.data[,2], type = "o", lwd = 1.5, ylab = "NAO index", xlab = "Years")
-lines(years,rep(0,length(years)), col = "black")
-plot(years,par_est$est$PbdvLogRecruitDevs, type = "o", lwd = 1.5, ylab = "log-scale recruitment deviations", xlab = "Years")
-lines(years,rep(0,length(years)), col = "black")
+#windows(10,10)
+#par(mar=c(3,3,3,3))
+#par(mfrow=c(1,2))
+#plot(years,env.data[,2], type = "o", lwd = 1.5, ylab = "NAO index", xlab = "Years")
+#lines(years,rep(0,length(years)), col = "black")
+#plot(years,par_est$est$PbdvLogRecruitDevs, type = "o", lwd = 1.5, ylab = "log-scale recruitment deviations", xlab = "Years")
+#lines(years,rep(0,length(years)), col = "black")
 
 
 # Calculate index residuals
