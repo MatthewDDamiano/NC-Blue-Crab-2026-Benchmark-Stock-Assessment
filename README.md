@@ -3,7 +3,7 @@ The 2026 North Carolina blue crab (Calinectes sapidus) benchmark stock assessmen
 1) The Assessment model and figure code, which contains the ADMB .tpl file, compiled executable (.exe),
    other supporting .R files used to connect ADMB model output with R, plots from the original size structured
    model (Cao et al. 2017), and biological reference point code
-2) The main R files for running the model: 01_RunModel.R, 01_SetData.R, and 01_DataGen.R, which set up the model
+2) The main R files for running the model: 01_RunModel.R, 01_SetData.R, 01_DataGen.R, and 01_Functions_old.R, which set up the model
    configuration and run the model from R
 3) The data files: BC_catch_2seas.csv, which contains the seasonal catch and fishery-dependent size composition data
    during 1982-2024; and BC_survey_2seas.csv, which contains the fishery-independent index of relative abundance
