@@ -28,7 +28,7 @@ The paper documenting the model by Cao et al. (2017) and associated user guide a
 To access the original model code, visit Dr. Jie Cao's GitHub: https://github.com/SOUKETU > size_structured_assessment_model
 
 If you encounter any issues running the code, or have questions about the model and its outputs, 
-contact Matt Damiano at matt.damiano@deq.nc.gov
+contact Dr. Matt Damiano at matt.damiano@deq.nc.gov
 
 
 
