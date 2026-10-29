@@ -2906,6 +2906,7 @@ lL1=2;
   #ifndef NO_AD_INITIALIZE
     Md3FemalePropAtSizeP.initialize();
   #endif
+  SSB_out.allocate(DiCalBeginYear,DiCalEndYear,"SSB_out");
   sdr_vSSB.allocate(DiCalBeginYear,DiCalEndYear,"sdr_vSSB");
   #ifndef NO_AD_INITIALIZE
     sdr_vSSB.initialize();
@@ -4662,6 +4663,9 @@ void model_parameters::CalNumberAtSize(void)
                      MvNASPJD     = MvNASTemp*Md3GrowthMatrix(iL1); 
                }
             }
+            //sdreport abundance and SSB MDD 10-29-2026
+            //N_out = colsum(Md3NAS);
+            SSB_out = sdr_vSSB;
             //cout<<Md3NAS<<endl;
             //exit(110);
        }

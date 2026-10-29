@@ -69,6 +69,11 @@ ssb.ftarg <- EquiSSBFun(spr.ftarg,1,1)  # SSB 75% F40
 spr.f20 <- SPRFunc((BRPsummary[1,'FThreshSpr']),n_t,0,0) #SPR F20
 ssb.f20 <- EquiSSBFun(spr.f20,1,1) # SSBF20, almost exactly the same as 50% of SSBF40
 
+#95% CIs for SSB
+ssb.se <- par_est$std$SSB_out
+ssb.upper.CI <- report$Spawning_stock_Biomass + 1.96*ssb.se
+ssb.lower.CI <- report$Spawning_stock_Biomass - 1.96*ssb.se
+
 # Plot stock status
 windows(10,10)
 par(mfrow=c(1,2))
@@ -77,14 +82,16 @@ lines(years, BRPsummary[,'FTargetSpr'], col = "blue")
 lines(years, BRPsummary[,'FTargetSpr']*0.75, col = "green")
 # lines(years, BRPsummary[,'FThreshSpr'], col = "red")
 legend("topleft", cex = 0.6, c("F40", "75%F40"), col=c("blue","green"), lty = 1)
-plot(years, report$Spawning_stock_Biomass, type = "o", lwd = 1.5, col = "black", ylab = "Spawning stock biomass (1000 mt)", xlab = "Years",, ylim=c(0,max(report$Spawning_stock_Biomass)))
+plot(years, report$Spawning_stock_Biomass, type = "l", lwd = 1.5, col = "red", ylab = "Spawning stock biomass (1000 mt)", xlab = "Years",, ylim=c(0,max(report$Spawning_stock_Biomass)))
+lines(years, ssb.upper.CI, type = "b")
+lines(year, ssb.lower.CI, type = "b")
 lines(years, rep(ssb.fthresh,n_t), col = "blue")
 lines(years, rep(ssb.ftarg,n_t), col = "green")
 # lines(years, rep(ssb.f20,n_t), col = "red")
 lines(years, rep((0.5*ssb.fthresh),n_t), col = "black")
 # lines(years, rep((0.25*ssb.f0), n_t), col = "orange") # 25% SSBF0
 # lines(years, rep((0.75*ssb.fthresh), n_t), col = "pink") # 75% SSBF40
-legend("topright", cex = 0.6, c("SSBF40", "SSB 75%F40", "50% SSBF40"), col=c("blue","green", "black" ), lty = 1)
+legend("topright", cex = 0.6, c("SSB", "SSBF40", "SSB 75%F40", "50% SSBF40"), col=c("red", "blue","green", "black" ), lty = 1)
 
 
 # calculate dynamic B0 

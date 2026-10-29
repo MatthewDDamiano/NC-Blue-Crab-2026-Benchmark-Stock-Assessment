@@ -3699,6 +3699,7 @@ LOCAL_CALCS
                                                                                                            //                    2  0.0  0.3 0.5 0.2  0.0
  ///////////////////////////////////////////////////////////////////////////////////////////////////////////                     3  0.0  0.0 0.3 0.5  0.2  ////////////////////////////////////
   3darray                    Md3NAS(1,Flagtimestep,DiCalBeginYear,DiCalEndYear,1,DiSizeBinNum)
+  //sdreport_vector            N_out(DiCalBeginYear,DiCalEndYear) 
   vector            		 MvNASPJD(1,DiSizeBinNum)
   sdreport_vector            MvNASPJD_1(1,DiSizeBinNum-DiRecruitPrjVectNP)
 //////////////////////////////////////Catch at Size/////////////////////////////////////////////////////////////////
@@ -3724,7 +3725,7 @@ LOCAL_CALCS
   3darray                    Md3IndexPropAtSizeP(1,DiAvailIndexNum,DiCalBeginYear,DiCalEndYear,1,DiSizeBinNum)  //
   3darray                    Md3FemalePropAtSizeP(1,1,DiCalBeginYear,DiCalEndYear,1,DiSizeBinNum)
 ////////////////////////SD-Out/////MCMC//////////////////////////////////////////////////////////////////////////////////////
-  //sdreport_vector            sdr_vSSB(DiCalBeginYear,DiCalEndYear)   //sdreport_
+  sdreport_vector              SSB_out(DiCalBeginYear,DiCalEndYear)   //sdreport_
   //sdreport_vector            sdr_vSSB2(DiCalBeginYear,DiCalEndYear)
   //sdreport_number            sdr_nBPRMSY//sdreport_
   //sdreport_vector            sdr_vNBiomass(DiCalBeginYear,DiCalEndYear)
@@ -5356,6 +5357,9 @@ FUNCTION CalNumberAtSize
                      MvNASPJD     = MvNASTemp*Md3GrowthMatrix(iL1); 
                }
             }
+            //sdreport abundance and SSB MDD 10-29-2026
+            //N_out = colsum(Md3NAS);
+            SSB_out = sdr_vSSB;
             //cout<<Md3NAS<<endl;
             //exit(110);
        }
