@@ -1,4 +1,4 @@
-The 2026 North Carolina blue crab (Calinectes sapidus) benchmark stock assessment requires the following:
+The 2026 North Carolina blue crab (Callinectes sapidus) benchmark stock assessment requires the following:
 
 1) The Assessment model and figure code, which contains the ADMB .tpl file, compiled executable (.exe),
    other supporting .R files used to connect ADMB model output with R, plots from the original size structured
